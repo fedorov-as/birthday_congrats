@@ -1,1 +1,2 @@
-golangci-lint -c .golangci.yml run ./birthday_congrats/...
+root=$PWD
+cd birthday_congrats && golangci-lint -c $root/.golangci.yml run -v
