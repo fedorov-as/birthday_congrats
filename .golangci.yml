@@ -1,0 +1,22 @@
+run:
+  deadline: 5m
+  tests: true
+
+linters:
+  enable:
+    - bodyclose
+    - decorder
+    - errname
+    - forcetypeassert
+    - goconst
+    - gocritic
+    - gocyclo
+    - godox
+    - misspell
+    - prealloc
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+  fast: false
