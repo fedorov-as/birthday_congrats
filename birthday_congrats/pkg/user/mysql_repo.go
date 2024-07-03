@@ -87,7 +87,7 @@ func (repo UsersMySQLRepo) Create(ctx context.Context, username, password, email
 
 func (repo *UsersMySQLRepo) Login(ctx context.Context, username, password string) (*User, error) {
 	user := &User{}
-	var passInDB string
+	var passwordInDB string
 
 	err := repo.db.QueryRowContext(
 		ctx,
@@ -96,7 +96,7 @@ func (repo *UsersMySQLRepo) Login(ctx context.Context, username, password string
 	).Scan(
 		&user.ID,
 		&user.Username,
-		&passInDB,
+		&passwordInDB,
 		&user.Email,
 		&user.Birthday,
 	)
@@ -108,7 +108,7 @@ func (repo *UsersMySQLRepo) Login(ctx context.Context, username, password string
 		return nil, ErrNoUser
 	}
 
-	if password != passInDB {
+	if password != passwordInDB {
 		return nil, ErrBadPassword
 	}
 
