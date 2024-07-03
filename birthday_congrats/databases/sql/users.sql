@@ -4,7 +4,9 @@ CREATE TABLE `users` (
   `username` text NOT NULL,
   `password` text NOT NULL,
   `email` text NOT NULL,
-  `birthday` int(64) NOT NULL,
+  `year` int(32) NOT NULL,
+  `month` int(32) NOT NULL,
+  `day` int(32) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

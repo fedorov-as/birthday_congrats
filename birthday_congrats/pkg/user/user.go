@@ -21,14 +21,19 @@ type User struct {
 	Username string `json:"username"`
 	Password string
 	Email    string `json:"email"`
-	Birthday int64  `json:"birthday"`
+	Year     int
+	Month    int
+	Day      int
 }
 
 type UsersRepo interface {
-	Create(ctx context.Context, username, password, email string, birth int64) (*User, error)
+	Create(ctx context.Context, username, password, email string, year, month, day int) (*User, error)
 	Login(ctx context.Context, username, password string) (*User, error)
 	GetAll(ctx context.Context) ([]*User, error)
-	GetSubscribtions(ctx context.Context, userID uint32) ([]uint32, error)
-	AddSubscribtion(ctx context.Context, subscriberID, subscriptionID uint32) error
+	GetByID(ctx context.Context, userID uint32) (*User, error)
+	GetSubscriptions(ctx context.Context, userID uint32) ([]uint32, error)
+	GetSubscribers(ctx context.Context, userID uint32) ([]uint32, error)
+	AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error
 	RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error
+	GetSubscribedEmailsByDate(ctx context.Context, month, day int) (map[string][]string, error)
 }
