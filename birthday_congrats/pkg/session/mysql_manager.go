@@ -58,10 +58,16 @@ func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (Sess
 	return newSession, nil
 }
 
-func (sm *MySQLSessionsManager) Check(ctx context.Context, sess Session) error {
+func (sm *MySQLSessionsManager) Check(ctx context.Context) error {
+	sess, err := SessionFromContext(ctx)
+	if err != nil {
+		sm.logger.Errorf("Error getting session from context: %v", err)
+		return err
+	}
+
 	// проверка, что сессия не истекла
 	if sess.Expires < time.Now().Unix() {
-		err := sm.Destroy(ctx, sess)
+		err := sm.Destroy(ctx)
 		if err != nil {
 			sm.logger.Errorf("Error while destroying session: %v", err)
 			return fmt.Errorf("destroy session error: %v", err)
@@ -71,7 +77,7 @@ func (sm *MySQLSessionsManager) Check(ctx context.Context, sess Session) error {
 	}
 
 	// проверка, что сессия существует
-	err := sm.db.QueryRowContext(
+	err = sm.db.QueryRowContext(
 		ctx,
 		"SELECT FROM sessions WHERE sess_id = ? AND user_id = ? AND expires = ?",
 		sess.SessID,
@@ -89,7 +95,13 @@ func (sm *MySQLSessionsManager) Check(ctx context.Context, sess Session) error {
 	return nil
 }
 
-func (sm *MySQLSessionsManager) Destroy(ctx context.Context, sess Session) error {
+func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error {
+	sess, err := SessionFromContext(ctx)
+	if err != nil {
+		sm.logger.Errorf("Error getting session from context: %v", err)
+		return err
+	}
+
 	result, err := sm.db.ExecContext(
 		ctx,
 		"DELETE FROM sessions WHERE sess_id = ?",

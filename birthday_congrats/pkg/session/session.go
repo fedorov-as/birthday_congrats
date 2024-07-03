@@ -22,8 +22,8 @@ type Session struct {
 
 type SessionsManager interface {
 	Create(ctx context.Context, userID uint32) (Session, error)
-	Check(ctx context.Context, sess Session) error
-	Destroy(ctx context.Context, sess Session) error
+	Check(ctx context.Context) error
+	Destroy(ctx context.Context) error
 }
 
 func newSession(sessIDLength int, userID uint32, expires int64) Session {
@@ -44,4 +44,21 @@ func RandStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+type sessKey string
+
+const sessionKey sessKey = "sessionKey"
+
+func ContextWithSession(ctx context.Context, sess *Session) context.Context {
+	return context.WithValue(ctx, sessionKey, sess)
+}
+
+func SessionFromContext(ctx context.Context) (*Session, error) {
+	sess, ok := ctx.Value(sessionKey).(*Session)
+	if !ok || sess == nil {
+		return nil, ErrNoSession
+	}
+
+	return sess, nil
 }

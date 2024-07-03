@@ -2,6 +2,7 @@ package service
 
 import (
 	alertmanager "birthday_congrats/pkg/alert_manager"
+	"birthday_congrats/pkg/session"
 	"birthday_congrats/pkg/user"
 	"context"
 	"fmt"
@@ -89,8 +90,14 @@ func (cs *CongratulationsService) Login(ctx context.Context, username, password 
 	return us, nil
 }
 
-func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriberID, subscriptionID uint32) error {
-	err := cs.usersRepo.AddSubscription(ctx, subscriberID, subscriptionID)
+func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32) error {
+	sess, err := session.SessionFromContext(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error getting session from context: %v", err)
+		return err
+	}
+
+	err = cs.usersRepo.AddSubscription(ctx, sess.UserID, subscriptionID)
 	if err != nil {
 		cs.logger.Errorf("Error adding subscription: %v", err)
 		return fmt.Errorf("Internal error")
@@ -99,8 +106,14 @@ func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriberID, s
 	return nil
 }
 
-func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriberID, subscriptionID uint32) error {
-	err := cs.usersRepo.RemoveSubscription(ctx, subscriberID, subscriptionID)
+func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionID uint32) error {
+	sess, err := session.SessionFromContext(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error getting session from context: %v", err)
+		return err
+	}
+
+	err = cs.usersRepo.RemoveSubscription(ctx, sess.UserID, subscriptionID)
 	if err != nil {
 		cs.logger.Errorf("Error removing subscription: %v", err)
 		return fmt.Errorf("Internal error")
