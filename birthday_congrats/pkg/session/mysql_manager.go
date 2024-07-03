@@ -29,13 +29,14 @@ func NewMySQLSessionsManager(db *sql.DB, logger *zap.SugaredLogger, expiresTime 
 	}
 }
 
-func (sm *MySQLSessionsManager) Create(ctx context.Context) (Session, error) {
-	newSession := newSession(sm.sessIDLength, time.Now().Unix()+sm.expiresTime)
+func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (Session, error) {
+	newSession := newSession(sm.sessIDLength, userID, time.Now().Unix()+sm.expiresTime)
 
 	result, err := sm.db.ExecContext(
 		ctx,
-		"INSERT INTO sessions (`sess_id`, `expires`) VALUES (?, ?)",
+		"INSERT INTO sessions (`sess_id`, `user_id`, `expires`) VALUES (?, ?, ?)",
 		newSession.SessID,
+		newSession.UserID,
 		newSession.Expires,
 	)
 	if err != nil {
@@ -70,13 +71,13 @@ func (sm *MySQLSessionsManager) Check(ctx context.Context, sess Session) error {
 	}
 
 	// проверка, что сессия существует
-	var id int32
 	err := sm.db.QueryRowContext(
 		ctx,
-		"SELECT id FROM sessions WHERE sess_id = ? AND expires = ?",
+		"SELECT FROM sessions WHERE sess_id = ? AND user_id = ? AND expires = ?",
 		sess.SessID,
+		sess.UserID,
 		sess.Expires,
-	).Scan(&id)
+	).Scan()
 	if err != nil && err != sql.ErrNoRows {
 		sm.logger.Errorf("Error while SELECT from db: %v", err)
 		return fmt.Errorf("db error: %v", err)

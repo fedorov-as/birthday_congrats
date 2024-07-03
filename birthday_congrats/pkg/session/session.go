@@ -16,18 +16,20 @@ var (
 
 type Session struct {
 	SessID  string
+	UserID  uint32
 	Expires int64
 }
 
 type SessionsManager interface {
-	Create(ctx context.Context) (Session, error)
+	Create(ctx context.Context, userID uint32) (Session, error)
 	Check(ctx context.Context, sess Session) error
 	Destroy(ctx context.Context, sess Session) error
 }
 
-func newSession(sessIDLength int, expires int64) Session {
+func newSession(sessIDLength int, userID uint32, expires int64) Session {
 	return Session{
 		SessID:  RandStringRunes(sessIDLength),
+		UserID:  userID,
 		Expires: expires,
 	}
 }
