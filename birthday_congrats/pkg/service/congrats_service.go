@@ -83,7 +83,7 @@ func (cs *CongratulationsService) Login(ctx context.Context, username, password 
 		return nil, fmt.Errorf("internal error")
 	}
 	if err == user.ErrNoUser || err == user.ErrBadPassword {
-		cs.logger.Errorf("User not exist: %v", err)
+		cs.logger.Warnf("User not exist: %v", err)
 		return nil, user.ErrNoUser // оставляем только один тип ошибки, чтобы мошеннику было сложнее подобрать пароль
 	}
 
