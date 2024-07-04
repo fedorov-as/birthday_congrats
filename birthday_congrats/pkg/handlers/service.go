@@ -34,10 +34,18 @@ func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) {
 	_, err := session.SessionFromContext(r.Context())
 	if err == nil {
 		http.Redirect(w, r, "/users", http.StatusFound)
+		return
 	}
 
 	err = h.tmpl.ExecuteTemplate(w, "login.html", nil)
 	if err != nil {
 		h.logger.Errorf("template error: %v", err)
+	}
+}
+
+func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) {
+	err := h.tmpl.ExecuteTemplate(w, "error.html", nil)
+	if err != nil {
+		h.logger.Errorf("Template error: %v", err)
 	}
 }

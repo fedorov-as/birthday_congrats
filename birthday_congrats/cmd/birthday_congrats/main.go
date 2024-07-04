@@ -3,9 +3,11 @@ package main
 import (
 	"birthday_congrats/pkg/handlers"
 	"birthday_congrats/pkg/middlware"
+	"birthday_congrats/pkg/session"
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -27,6 +29,14 @@ func main() {
 	}()
 	logger := zapLogger.Sugar()
 
+	// менеджер сессий
+	sm := session.NewMySQLSessionsManager(
+		nil,
+		logger,
+		int64(time.Minute),
+		16,
+	)
+
 	// хендлеры
 	serviceHandler := handlers.NewServiceHandler(
 		templates,
@@ -38,6 +48,15 @@ func main() {
 	// роутер
 	router := mux.NewRouter()
 	router.HandleFunc("/", serviceHandler.Index).Methods("GET")
+	router.HandleFunc("/error", serviceHandler.Error).Methods("GET")
+
+	// хендлеры, требующие авторизации
+	router.Handle("/users",
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Index)))
+	router.Handle("/subscribe/{user_id}",
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Index)))
+	router.Handle("/unsubscribe/{user_id}",
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Index)))
 
 	// добавляем миддлверы
 	mux := middlware.Logger(logger, router)

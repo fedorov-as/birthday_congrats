@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"math/rand"
+	"net/http"
 
 	"github.com/pkg/errors"
 )
@@ -22,7 +23,7 @@ type Session struct {
 
 type SessionsManager interface {
 	Create(ctx context.Context, userID uint32) (*Session, error)
-	Check(ctx context.Context) (*Session, error)
+	Check(r *http.Request) (*Session, error)
 	Destroy(ctx context.Context) error
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -58,38 +59,44 @@ func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Ses
 	return &newSession, nil
 }
 
-func (sm *MySQLSessionsManager) Check(ctx context.Context) (*Session, error) {
-	sess, err := SessionFromContext(ctx)
+func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) {
+	cookie, err := r.Cookie("session_id")
 	if err != nil {
-		sm.logger.Errorf("Error getting session from context: %v", err)
-		return nil, err
+		sm.logger.Warnf("No session cookie found")
+		return nil, ErrNoSession
 	}
 
-	// проверка, что сессия не истекла
-	if sess.Expires < time.Now().Unix() {
-		err := sm.Destroy(ctx)
-		if err != nil {
-			sm.logger.Errorf("Error while destroying session: %v", err)
-			return nil, fmt.Errorf("destroy session error: %v", err)
-		}
-
-		return nil, ErrSessionExpired
-	}
+	sessID := cookie.String()
 
 	// проверка, что сессия существует
+	sess := &Session{
+		SessID: sessID,
+	}
 	err = sm.db.QueryRowContext(
-		ctx,
-		"SELECT FROM sessions WHERE sess_id = ? AND user_id = ? AND expires = ?",
-		sess.SessID,
-		sess.UserID,
-		sess.Expires,
-	).Scan()
+		r.Context(),
+		"SELECT user_id, expires FROM sessions WHERE sess_id = ?",
+		sessID,
+	).Scan(
+		&sess.UserID,
+		&sess.Expires,
+	)
 	if err != nil && err != sql.ErrNoRows {
 		sm.logger.Errorf("Error while SELECT from db: %v", err)
 		return nil, fmt.Errorf("db error: %v", err)
 	}
 	if err == sql.ErrNoRows {
 		return nil, ErrNoSession
+	}
+
+	// проверка, что сессия не истекла
+	if sess.Expires < time.Now().Unix() {
+		err := sm.Destroy(r.Context())
+		if err != nil {
+			sm.logger.Errorf("Error while destroying session: %v", err)
+			return nil, fmt.Errorf("destroy session error: %v", err)
+		}
+
+		return nil, ErrSessionExpired
 	}
 
 	return sess, nil
