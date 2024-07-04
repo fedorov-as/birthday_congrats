@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Сервис поздравлений с днём рождения</title>
+</head>
+
+<body>
+    <h1>Сотрудники</h1>
+
+    <table>
+        <tr>
+            <td>Сотрудник</td>
+            <td>Дата рождения</td>
+            <td></td>
+        </tr>
+        {{range .Users}}
+        <tr>
+            <td>{{.Username}}</td>
+            <td>{{.Day}}.{{.Month}}.{{.Year}}</td>
+            <td></td>
+        </tr>
+        {{end}}
+    </table>
+</body>
+
+</html>

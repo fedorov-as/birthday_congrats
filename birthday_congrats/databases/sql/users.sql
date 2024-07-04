@@ -1,12 +1,12 @@
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
-  `id` int(32) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `username` text NOT NULL,
   `password` text NOT NULL,
   `email` text NOT NULL,
-  `year` int(32) NOT NULL,
-  `month` int(32) NOT NULL,
-  `day` int(32) NOT NULL,
+  `year` int NOT NULL,
+  `month` int NOT NULL,
+  `day` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

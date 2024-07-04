@@ -6,6 +6,7 @@ import (
 	"birthday_congrats/pkg/user"
 	"html/template"
 	"net/http"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -43,9 +44,10 @@ func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string
 }
 
 func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) {
-	_, err := session.SessionFromContext(r.Context())
+	sess, err := h.sm.Check(r)
 	if err == nil {
-		http.Redirect(w, r, "/users", http.StatusFound)
+		ctx := session.ContextWithSession(r.Context(), sess)
+		http.Redirect(w, r.WithContext(ctx), "/users", http.StatusFound)
 		return
 	}
 
@@ -60,7 +62,7 @@ func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
-	_, err := h.service.Register(
+	sess, err := h.service.Register(
 		r.Context(),
 		r.FormValue("username"),
 		r.FormValue("password"),
@@ -76,11 +78,17 @@ func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:    "session_id",
+		Value:   sess.SessID,
+		Expires: time.Unix(sess.Expires, 0),
+	})
+
 	http.Redirect(w, r, "/users", http.StatusFound)
 }
 
 func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
-	_, err := h.service.Login(
+	sess, err := h.service.Login(
 		r.Context(),
 		r.FormValue("username"),
 		r.FormValue("password"),
@@ -94,5 +102,27 @@ func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:    "session_id",
+		Value:   sess.SessID,
+		Expires: time.Unix(sess.Expires, 0),
+	})
+
 	http.Redirect(w, r, "/users", http.StatusFound)
+}
+
+func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) {
+	users, err := h.service.GetAll(r.Context())
+	if err != nil {
+		h.logger.Errorf("Error getting all users: %v", err)
+	}
+
+	err = h.tmpl.ExecuteTemplate(w, "users.html", struct {
+		Users []*user.User
+	}{
+		Users: users,
+	})
+	if err != nil {
+		h.logger.Errorf("Template error: %v", err)
+	}
 }

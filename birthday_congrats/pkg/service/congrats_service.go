@@ -22,17 +22,20 @@ var (
 
 type CongratulationsService struct {
 	usersRepo user.UsersRepo
+	sm        session.SessionsManager
 	alerts    alertmanager.AlertManager
 	logger    *zap.SugaredLogger
 }
 
 func NewCongratulationsService(
 	usersRepo user.UsersRepo,
+	sm session.SessionsManager,
 	alerts alertmanager.AlertManager,
 	logger *zap.SugaredLogger,
 ) *CongratulationsService {
 	return &CongratulationsService{
 		usersRepo: usersRepo,
+		sm:        sm,
 		alerts:    alerts,
 		logger:    logger,
 	}
@@ -48,7 +51,7 @@ func (cs *CongratulationsService) GetAll(ctx context.Context) ([]*user.User, err
 	return users, nil
 }
 
-func (cs *CongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*user.User, error) {
+func (cs *CongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) {
 	birthday, err := time.Parse(dateLayout, birth)
 	if err != nil {
 		cs.logger.Errorf("Error while parsing date: %v", err)
@@ -73,10 +76,16 @@ func (cs *CongratulationsService) Register(ctx context.Context, username, passwo
 		return nil, err
 	}
 
-	return newUser, nil
+	sess, err := cs.sm.Create(ctx, newUser.ID)
+	if err != nil {
+		cs.logger.Errorf("Error while creating session")
+		return nil, fmt.Errorf("internal error")
+	}
+
+	return sess, nil
 }
 
-func (cs *CongratulationsService) Login(ctx context.Context, username, password string) (*user.User, error) {
+func (cs *CongratulationsService) Login(ctx context.Context, username, password string) (*session.Session, error) {
 	us, err := cs.usersRepo.Login(ctx, username, password)
 	if err != nil && err != user.ErrNoUser && err != user.ErrBadPassword {
 		cs.logger.Errorf("Error while logging in: %v", err)
@@ -87,7 +96,13 @@ func (cs *CongratulationsService) Login(ctx context.Context, username, password 
 		return nil, user.ErrNoUser // оставляем только один тип ошибки, чтобы мошеннику было сложнее подобрать пароль
 	}
 
-	return us, nil
+	sess, err := cs.sm.Create(ctx, us.ID)
+	if err != nil {
+		cs.logger.Errorf("Error while creating session")
+		return nil, fmt.Errorf("internal error")
+	}
+
+	return sess, nil
 }
 
 func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32) error {

@@ -66,7 +66,7 @@ func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) {
 		return nil, ErrNoSession
 	}
 
-	sessID := cookie.String()
+	sessID := cookie.Value
 
 	// проверка, что сессия существует
 	sess := &Session{
@@ -85,6 +85,7 @@ func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) {
 		return nil, fmt.Errorf("db error: %v", err)
 	}
 	if err == sql.ErrNoRows {
+		sm.logger.Warnf("No session found in db")
 		return nil, ErrNoSession
 	}
 

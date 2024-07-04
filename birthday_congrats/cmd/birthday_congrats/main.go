@@ -69,13 +69,14 @@ func main() {
 	sm := session.NewMySQLSessionsManager(
 		dbMySQL,
 		logger,
-		int64(time.Minute),
+		int64(time.Minute/time.Second),
 		16,
 	)
 
 	// сам сервис
 	service := service.NewCongratulationsService(
 		usersRepo,
+		sm,
 		nil,
 		logger,
 	)
@@ -97,7 +98,7 @@ func main() {
 
 	// хендлеры, требующие авторизации
 	router.Handle("/users",
-		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Index)))
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Users)))
 	router.Handle("/subscribe/{user_id}",
 		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Index)))
 	router.Handle("/unsubscribe/{user_id}",
