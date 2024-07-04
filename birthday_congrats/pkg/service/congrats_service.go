@@ -69,7 +69,7 @@ func (cs *CongratulationsService) Register(ctx context.Context, username, passwo
 		return nil, fmt.Errorf("internal error")
 	}
 	if err == user.ErrUserExists {
-		cs.logger.Errorf("User already exists")
+		cs.logger.Warnf("User already exists")
 		return nil, err
 	}
 

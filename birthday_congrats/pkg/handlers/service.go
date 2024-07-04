@@ -31,6 +31,17 @@ func NewServiceHandler(
 	}
 }
 
+func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string) {
+	err := h.tmpl.ExecuteTemplate(w, "error.html", struct {
+		Message string
+	}{
+		Message: message,
+	})
+	if err != nil {
+		h.logger.Errorf("Template error: %v", err)
+	}
+}
+
 func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) {
 	_, err := session.SessionFromContext(r.Context())
 	if err == nil {
@@ -45,10 +56,7 @@ func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) {
-	err := h.tmpl.ExecuteTemplate(w, "error.html", nil)
-	if err != nil {
-		h.logger.Errorf("Template error: %v", err)
-	}
+	h.execErrorTemplate(w, "Произошла ошибка")
 }
 
 func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -63,15 +71,12 @@ func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
 		h.logger.Errorf("Error while registration: %v", err)
 	}
 	if err == user.ErrUserExists {
-		err = h.tmpl.ExecuteTemplate(w, "error.html", nil)
-		if err != nil {
-			h.logger.Errorf("Template error: %v", err)
-		}
+		h.execErrorTemplate(w, "Пользоваель с таким именем уже существует")
 
 		return
 	}
 
-	http.Redirect(w, r, "/user", http.StatusFound)
+	http.Redirect(w, r, "/users", http.StatusFound)
 }
 
 func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -84,13 +89,10 @@ func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
 		h.logger.Errorf("Error while registration: %v", err)
 	}
 	if err == user.ErrNoUser {
-		err = h.tmpl.ExecuteTemplate(w, "error.html", nil)
-		if err != nil {
-			h.logger.Errorf("Template error: %v", err)
-		}
+		h.execErrorTemplate(w, "Неверный логин или пароль")
 
 		return
 	}
 
-	http.Redirect(w, r, "/user", http.StatusFound)
+	http.Redirect(w, r, "/users", http.StatusFound)
 }

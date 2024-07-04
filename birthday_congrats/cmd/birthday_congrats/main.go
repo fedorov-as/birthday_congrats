@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const debugPathToTemplates = "C:\\Users\\sasha\\Desktop\\job_search\\RuTube\\test_task\\birthday_congrats_repository\\birthday_congrats\\templates\\*"
+// const debugPathToTemplates = "C:\\Users\\sasha\\Desktop\\job_search\\RuTube\\test_task\\birthday_congrats_repository\\birthday_congrats\\templates\\*"
 
 func main() {
 	templates := template.Must(template.ParseGlob("./templates/*"))
