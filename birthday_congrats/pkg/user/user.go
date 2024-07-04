@@ -17,13 +17,15 @@ var (
 )
 
 type User struct {
-	ID       uint32 `json:"id" sql:"AUTO_INCREMENT"`
-	Username string `json:"username"`
+	ID       uint32 `sql:"AUTO_INCREMENT"`
+	Username string
 	Password string
-	Email    string `json:"email"`
+	Email    string
 	Year     int
 	Month    int
 	Day      int
+
+	Subscription bool // вспомогательное поле (подписка конкретного пользователя)
 }
 
 type UsersRepo interface {

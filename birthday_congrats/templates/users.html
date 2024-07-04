@@ -18,8 +18,12 @@
         {{range .Users}}
         <tr>
             <td>{{.Username}}</td>
-            <td>{{.Day}}.{{.Month}}.{{.Year}}</td>
-            <td></td>
+            <td>{{printf "%02d.%02d.%04d" .Day .Month .Year}}</td>
+            <td>
+                <form action="/subscribe/{{.ID}}" method="post">
+                    <input type="submit" value="{{if .Subscription}}Отписаться{{else}}Подписаться{{end}}">
+                </form>
+            </td>
         </tr>
         {{end}}
     </table>

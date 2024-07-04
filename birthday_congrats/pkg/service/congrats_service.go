@@ -6,6 +6,7 @@ import (
 	"birthday_congrats/pkg/user"
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/pkg/errors"
@@ -135,4 +136,39 @@ func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionI
 	}
 
 	return nil
+}
+
+func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user.User, error) {
+	users, err := cs.usersRepo.GetAll(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error while getting all users: %v", err)
+		return nil, fmt.Errorf("internal error")
+	}
+
+	sess, err := session.SessionFromContext(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error getting session from context: %v", err)
+		return nil, session.ErrNoSession
+	}
+
+	subscriptions, err := cs.usersRepo.GetSubscriptions(ctx, sess.UserID)
+	if err != nil {
+		cs.logger.Errorf("Error getting subscriptions: %v", err)
+		return nil, fmt.Errorf("internal error")
+	}
+
+	slices.Sort(subscriptions)
+
+	i := 0
+	for _, u := range users {
+		if i >= len(subscriptions) {
+			break
+		}
+
+		if u.ID == subscriptions[i] {
+			u.Subscription = true
+		}
+	}
+
+	return users, nil
 }
