@@ -3,6 +3,7 @@ package handlers
 import (
 	"birthday_congrats/pkg/service"
 	"birthday_congrats/pkg/session"
+	"birthday_congrats/pkg/user"
 	"html/template"
 	"net/http"
 
@@ -48,4 +49,48 @@ func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Errorf("Template error: %v", err)
 	}
+}
+
+func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
+	_, err := h.service.Register(
+		r.Context(),
+		r.FormValue("username"),
+		r.FormValue("password"),
+		r.FormValue("email"),
+		r.FormValue("birth"),
+	)
+	if err != nil && err != user.ErrUserExists {
+		h.logger.Errorf("Error while registration: %v", err)
+	}
+	if err == user.ErrUserExists {
+		err = h.tmpl.ExecuteTemplate(w, "error.html", nil)
+		if err != nil {
+			h.logger.Errorf("Template error: %v", err)
+		}
+
+		return
+	}
+
+	http.Redirect(w, r, "/user", http.StatusFound)
+}
+
+func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
+	_, err := h.service.Login(
+		r.Context(),
+		r.FormValue("username"),
+		r.FormValue("password"),
+	)
+	if err != nil && err != user.ErrNoUser {
+		h.logger.Errorf("Error while registration: %v", err)
+	}
+	if err == user.ErrNoUser {
+		err = h.tmpl.ExecuteTemplate(w, "error.html", nil)
+		if err != nil {
+			h.logger.Errorf("Template error: %v", err)
+		}
+
+		return
+	}
+
+	http.Redirect(w, r, "/user", http.StatusFound)
 }

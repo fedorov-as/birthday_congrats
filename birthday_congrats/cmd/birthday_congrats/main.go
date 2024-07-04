@@ -48,6 +48,8 @@ func main() {
 	// роутер
 	router := mux.NewRouter()
 	router.HandleFunc("/", serviceHandler.Index).Methods("GET")
+	router.HandleFunc("register", serviceHandler.Register).Methods("POST")
+	router.HandleFunc("login", serviceHandler.Login).Methods("POST")
 	router.HandleFunc("/error", serviceHandler.Error).Methods("GET")
 
 	// хендлеры, требующие авторизации
