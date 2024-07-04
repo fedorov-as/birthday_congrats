@@ -29,7 +29,7 @@ func NewMySQLSessionsManager(db *sql.DB, logger *zap.SugaredLogger, expiresTime 
 	}
 }
 
-func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (Session, error) {
+func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Session, error) {
 	newSession := newSession(sm.sessIDLength, userID, time.Now().Unix()+sm.expiresTime)
 
 	result, err := sm.db.ExecContext(
@@ -41,28 +41,28 @@ func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (Sess
 	)
 	if err != nil {
 		sm.logger.Errorf("Error while INSERT into db: %v", err)
-		return Session{}, fmt.Errorf("db error: %v", err)
+		return nil, fmt.Errorf("db error: %v", err)
 	}
 
 	// проверка, что запись добавлена
 	affected, err := result.RowsAffected()
 	if err != nil {
 		sm.logger.Errorf("Error in RowsAffected(): %v", err)
-		return Session{}, fmt.Errorf("db error: %v", err)
+		return nil, fmt.Errorf("db error: %v", err)
 	}
 	if affected == 0 {
 		sm.logger.Errorf("Subscription was not added")
-		return Session{}, ErrSessionNotCreated
+		return nil, ErrSessionNotCreated
 	}
 
-	return newSession, nil
+	return &newSession, nil
 }
 
-func (sm *MySQLSessionsManager) Check(ctx context.Context) error {
+func (sm *MySQLSessionsManager) Check(ctx context.Context) (*Session, error) {
 	sess, err := SessionFromContext(ctx)
 	if err != nil {
 		sm.logger.Errorf("Error getting session from context: %v", err)
-		return err
+		return nil, err
 	}
 
 	// проверка, что сессия не истекла
@@ -70,10 +70,10 @@ func (sm *MySQLSessionsManager) Check(ctx context.Context) error {
 		err := sm.Destroy(ctx)
 		if err != nil {
 			sm.logger.Errorf("Error while destroying session: %v", err)
-			return fmt.Errorf("destroy session error: %v", err)
+			return nil, fmt.Errorf("destroy session error: %v", err)
 		}
 
-		return ErrSessionExpired
+		return nil, ErrSessionExpired
 	}
 
 	// проверка, что сессия существует
@@ -86,13 +86,13 @@ func (sm *MySQLSessionsManager) Check(ctx context.Context) error {
 	).Scan()
 	if err != nil && err != sql.ErrNoRows {
 		sm.logger.Errorf("Error while SELECT from db: %v", err)
-		return fmt.Errorf("db error: %v", err)
+		return nil, fmt.Errorf("db error: %v", err)
 	}
 	if err == sql.ErrNoRows {
-		return ErrNoSession
+		return nil, ErrNoSession
 	}
 
-	return nil
+	return sess, nil
 }
 
 func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error {
