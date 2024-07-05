@@ -42,15 +42,15 @@ func NewCongratulationsService(
 	}
 }
 
-func (cs *CongratulationsService) GetAll(ctx context.Context) ([]*user.User, error) {
-	users, err := cs.usersRepo.GetAll(ctx)
-	if err != nil {
-		cs.logger.Errorf("Error while getting all users: %v", err)
-		return nil, fmt.Errorf("internal error")
-	}
+// func (cs *CongratulationsService) GetAll(ctx context.Context) ([]*user.User, error) {
+// 	users, err := cs.usersRepo.GetAll(ctx)
+// 	if err != nil {
+// 		cs.logger.Errorf("Error while getting all users: %v", err)
+// 		return nil, fmt.Errorf("internal error")
+// 	}
 
-	return users, nil
-}
+// 	return users, nil
+// }
 
 func (cs *CongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) {
 	birthday, err := time.Parse(dateLayout, birth)

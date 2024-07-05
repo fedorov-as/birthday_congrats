@@ -1,5 +1,5 @@
 package alertmanager
 
 type AlertManager interface {
-	Send(to, message string) error
+	Send(to []string, message string) error
 }

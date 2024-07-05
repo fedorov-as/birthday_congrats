@@ -1,6 +1,7 @@
 package main
 
 import (
+	alertmanager "birthday_congrats/pkg/alert_manager"
 	"birthday_congrats/pkg/handlers"
 	"birthday_congrats/pkg/middlware"
 	"birthday_congrats/pkg/service"
@@ -73,11 +74,22 @@ func main() {
 		16,
 	)
 
+	am := alertmanager.NewEmailAlertManager(
+		// Информация об отправителе (в продакшене я бы закинул это в credentials на github/gitlab)
+		"birthday.congratulations@yandex.ru",
+		"ucgcgejoiguychfa",
+
+		// smtp сервер конфигурация
+		"smtp.yandex.ru",
+		"587",
+		logger,
+	)
+
 	// сам сервис
 	service := service.NewCongratulationsService(
 		usersRepo,
 		sm,
-		nil,
+		am,
 		logger,
 	)
 
