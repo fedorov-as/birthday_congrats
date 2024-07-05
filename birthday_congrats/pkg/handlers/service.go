@@ -6,8 +6,10 @@ import (
 	"birthday_congrats/pkg/user"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
@@ -125,4 +127,36 @@ func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Errorf("Template error: %v", err)
 	}
+}
+
+func (h *ServiceHandler) Subscribe(w http.ResponseWriter, r *http.Request) {
+	subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
+	if err != nil {
+		h.logger.Errorf("Error converting string to int: %v", err)
+		return
+	}
+
+	err = h.service.Subscribe(r.Context(), uint32(subscriptionID))
+	if err != nil {
+		h.logger.Errorf("Error while subscribing: %v", err)
+		return
+	}
+
+	http.Redirect(w, r, "/users", http.StatusFound)
+}
+
+func (h *ServiceHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
+	subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
+	if err != nil {
+		h.logger.Errorf("Error converting string to int: %v", err)
+		return
+	}
+
+	err = h.service.Unsubscribe(r.Context(), uint32(subscriptionID))
+	if err != nil {
+		h.logger.Errorf("Error while subscribing: %v", err)
+		return
+	}
+
+	http.Redirect(w, r, "/users", http.StatusFound)
 }

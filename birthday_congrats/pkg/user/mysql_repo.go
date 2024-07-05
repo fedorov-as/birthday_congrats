@@ -299,7 +299,7 @@ func (repo *UsersMySQLRepo) RemoveSubscription(ctx context.Context, subscriberID
 		return fmt.Errorf("db error: %v", err)
 	}
 	if affected == 0 {
-		repo.logger.Errorf("Subscription was not removed")
+		repo.logger.Warnf("Subscription was not removed")
 		return ErrRemoveSubscription
 	}
 

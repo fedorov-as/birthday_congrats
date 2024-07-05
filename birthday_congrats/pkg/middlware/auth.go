@@ -12,7 +12,7 @@ func Auth(sm session.SessionsManager, logger *zap.SugaredLogger, next http.Handl
 		sess, err := sm.Check(r)
 		if err != nil {
 			logger.Warnf("auth error: %v", err)
-			http.Redirect(w, r, "/error", http.StatusUnauthorized)
+			http.Redirect(w, r, "/error", http.StatusFound)
 			return
 		}
 

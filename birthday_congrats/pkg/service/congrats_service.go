@@ -130,9 +130,12 @@ func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionI
 	}
 
 	err = cs.usersRepo.RemoveSubscription(ctx, sess.UserID, subscriptionID)
-	if err != nil {
+	if err != nil && err != user.ErrRemoveSubscription {
 		cs.logger.Errorf("Error removing subscription: %v", err)
 		return fmt.Errorf("Internal error")
+	}
+	if err == user.ErrRemoveSubscription {
+		cs.logger.Warnf("Subscription was not removed")
 	}
 
 	return nil
@@ -167,6 +170,7 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 
 		if u.ID == subscriptions[i] {
 			u.Subscription = true
+			i++
 		}
 	}
 
