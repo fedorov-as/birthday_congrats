@@ -176,3 +176,17 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 
 	return users, nil
 }
+
+func (cs *CongratulationsService) Logout(ctx context.Context) error {
+	err := cs.sm.Destroy(ctx)
+	if err != nil && err != session.ErrNotDestroyed && err != session.ErrNoSession {
+		cs.logger.Errorf("Error while destroying session")
+		return fmt.Errorf("internal error")
+	}
+	if err == session.ErrNoSession || err == session.ErrNotDestroyed {
+		cs.logger.Warnf("Session was not destroyed")
+		return session.ErrNotDestroyed
+	}
+
+	return nil
+}

@@ -103,6 +103,8 @@ func main() {
 		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Subscribe)))
 	router.Handle("/unsubscribe/{user_id}",
 		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Unsubscribe)))
+	router.Handle("/logout",
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Logout)))
 
 	// добавляем миддлверы
 	mux := middlware.Logger(logger, router)

@@ -160,3 +160,23 @@ func (h *ServiceHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/users", http.StatusFound)
 }
+
+func (h *ServiceHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	err := h.service.Logout(r.Context())
+	if err != nil && err != session.ErrNotDestroyed {
+		h.logger.Errorf("Error while logout: %v", err)
+	}
+	if err == session.ErrNotDestroyed {
+		h.logger.Warnf("Session was not destroyed")
+	}
+
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		h.logger.Warnf("No cookie found")
+	}
+
+	cookie.Expires = time.Now().AddDate(0, 0, -1)
+	http.SetCookie(w, cookie)
+
+	http.Redirect(w, r, "/", http.StatusFound)
+}
