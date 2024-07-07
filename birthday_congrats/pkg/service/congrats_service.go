@@ -258,7 +258,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 	daysBefore := int(time.Until(birthday).Hours())/24 + 1
 
 	messages := make([]string, 0)
-	messages = append(messages, us.Username+" празднует свой день рождения через "+string(daysBefore)+" дней")
+	messages = append(messages, fmt.Sprintf("%s празднует свой день рождения через %d дней!", us.Username, daysBefore))
 
 	allRecipients := make([][]string, 0)
 	to := make([]string, 0)
@@ -284,7 +284,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 			}
 
 			daysBefore := int(time.Until(birthday).Hours())/24 + 1
-			messages = append(messages, us.Username+" празднует свой день рождения через "+string(daysBefore)+" дней")
+			messages = append(messages, fmt.Sprintf("%s празднует свой день рождения через %d дней!", us.Username, daysBefore))
 
 			allRecipients = append(allRecipients, to)
 			to = make([]string, 0)
