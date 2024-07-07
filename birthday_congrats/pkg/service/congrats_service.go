@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -106,14 +107,14 @@ func (cs *CongratulationsService) Login(ctx context.Context, username, password 
 	return sess, nil
 }
 
-func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32) error {
+func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32, daysAlert int) error {
 	sess, err := session.SessionFromContext(ctx)
 	if err != nil {
 		cs.logger.Errorf("Error getting session from context: %v", err)
 		return err
 	}
 
-	err = cs.usersRepo.AddSubscription(ctx, sess.UserID, subscriptionID)
+	err = cs.usersRepo.AddSubscription(ctx, sess.UserID, subscriptionID, daysAlert)
 	if err != nil {
 		cs.logger.Errorf("Error adding subscription: %v", err)
 		return fmt.Errorf("Internal error")
@@ -154,13 +155,13 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 		return nil, session.ErrNoSession
 	}
 
-	subscriptions, err := cs.usersRepo.GetSubscriptions(ctx, sess.UserID)
+	subscriptions, err := cs.usersRepo.GetSubscriptionsByUser(ctx, sess.UserID)
 	if err != nil {
 		cs.logger.Errorf("Error getting subscriptions: %v", err)
 		return nil, fmt.Errorf("internal error")
 	}
 
-	slices.Sort(subscriptions)
+	slices.SortFunc(subscriptions, func(a, b user.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
 	i := 0
 	for _, u := range users {
@@ -168,8 +169,9 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 			break
 		}
 
-		if u.ID == subscriptions[i] {
+		if u.ID == subscriptions[i].Subscription {
 			u.Subscription = true
+			u.DaysAlert = subscriptions[i].DaysAlert
 			i++
 		}
 	}
@@ -189,4 +191,117 @@ func (cs *CongratulationsService) Logout(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, wg *sync.WaitGroup) {
+	if timeStart.Before(time.Now()) {
+		time.Sleep(time.Until(timeStart))
+	}
+
+	go cs.alert(ctx, wg)
+}
+
+func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	wg1 := &sync.WaitGroup{}
+	ticker := time.NewTicker(time.Hour * 24)
+	for {
+		select {
+		case <-ctx.Done():
+			wg1.Wait()
+			return
+		case <-ticker.C:
+			messages, recipients, err := cs.makeMessages(ctx)
+			if err != nil {
+				cs.logger.Errorf("Error while making messages: %v", err)
+			}
+
+			for i := range messages {
+				wg1.Add(1)
+				go cs.alerts.Send(recipients[i], messages[i], wg1)
+			}
+		}
+	}
+}
+
+func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [][]string, error) {
+	subscriptions, err := cs.usersRepo.GetAllSubscriptions(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error getting all subscriptions: %v", err)
+	}
+
+	if len(subscriptions) == 0 {
+		return nil, nil, nil
+	}
+
+	slices.SortFunc(subscriptions, func(a, b user.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
+
+	subID := subscriptions[0].Subscription
+	us, err := cs.usersRepo.GetByID(ctx, subID)
+	if err != nil {
+		cs.logger.Errorf("Error getting user by id: %v", err)
+		return nil, nil, fmt.Errorf("repo error: %v", err)
+	}
+
+	birthday := time.Date(
+		time.Now().Year(),
+		time.Month(us.Month),
+		us.Day,
+		0, 0, 0, 0,
+		time.UTC,
+	)
+	if birthday.Before(time.Now()) {
+		birthday = birthday.AddDate(1, 0, 0)
+	}
+
+	daysBefore := int(time.Until(birthday).Hours())/24 + 1
+
+	messages := make([]string, 0)
+	messages = append(messages, us.Username+" празднует свой день рождения через "+string(daysBefore)+" дней")
+
+	allRecipients := make([][]string, 0)
+	to := make([]string, 0)
+
+	for _, sub := range subscriptions {
+		if sub.Subscription != subID {
+			subID = sub.Subscription
+			us, err := cs.usersRepo.GetByID(ctx, subID)
+			if err != nil {
+				cs.logger.Errorf("Error getting user by id: %v", err)
+				return nil, nil, fmt.Errorf("repo error: %v", err)
+			}
+
+			birthday := time.Date(
+				time.Now().Year(),
+				time.Month(us.Month),
+				us.Day,
+				0, 0, 0, 0,
+				time.UTC,
+			)
+			if birthday.Before(time.Now()) {
+				birthday = birthday.AddDate(1, 0, 0)
+			}
+
+			daysBefore := int(time.Until(birthday).Hours())/24 + 1
+			messages = append(messages, us.Username+" празднует свой день рождения через "+string(daysBefore)+" дней")
+
+			allRecipients = append(allRecipients, to)
+			to = make([]string, 0)
+		}
+
+		if daysBefore == sub.DaysAlert {
+			subscriber, err := cs.usersRepo.GetByID(ctx, sub.Subscriber)
+			if err != nil {
+				cs.logger.Errorf("Error getting user by id: %v", err)
+				return nil, nil, fmt.Errorf("repo error: %v", err)
+			}
+
+			to = append(to, subscriber.Email)
+		}
+	}
+
+	allRecipients = append(allRecipients, to)
+
+	return messages, allRecipients, nil
 }

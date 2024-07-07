@@ -7,10 +7,12 @@ import (
 	"birthday_congrats/pkg/service"
 	"birthday_congrats/pkg/session"
 	"birthday_congrats/pkg/user"
+	"context"
 	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -74,6 +76,7 @@ func main() {
 		16,
 	)
 
+	// менеджер отправки писем
 	am := alertmanager.NewEmailAlertManager(
 		// Информация об отправителе (в продакшене я бы закинул это в credentials на github/gitlab)
 		"birthday.congratulations@yandex.ru",
@@ -92,6 +95,16 @@ func main() {
 		am,
 		logger,
 	)
+
+	// запускаем сервис оповещений
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := &sync.WaitGroup{}
+	defer func() {
+		cancel()
+		wg.Wait()
+	}()
+
+	service.StartAlert(ctx, time.Now().Add(time.Minute*1), wg)
 
 	// хендлеры
 	serviceHandler := handlers.NewServiceHandler(

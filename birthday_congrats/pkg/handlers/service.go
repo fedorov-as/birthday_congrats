@@ -136,7 +136,13 @@ func (h *ServiceHandler) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.Subscribe(r.Context(), uint32(subscriptionID))
+	daysAlert, err := strconv.Atoi(r.FormValue("days_alert"))
+	if err != nil {
+		h.logger.Errorf("Error converting string to int: %v", err)
+		return
+	}
+
+	err = h.service.Subscribe(r.Context(), uint32(subscriptionID), daysAlert)
 	if err != nil {
 		h.logger.Errorf("Error while subscribing: %v", err)
 		return

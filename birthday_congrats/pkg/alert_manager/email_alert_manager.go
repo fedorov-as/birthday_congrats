@@ -1,8 +1,8 @@
 package alertmanager
 
 import (
-	"fmt"
 	"net/smtp"
+	"sync"
 
 	"go.uber.org/zap"
 )
@@ -39,7 +39,9 @@ const (
 	smtpPort = "587"
 )
 
-func (am *EmailAlertManager) Send(to []string, message string) error {
+func (am *EmailAlertManager) Send(to []string, message string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	// Сообщение.
 	msg := []byte(message)
 
@@ -47,9 +49,7 @@ func (am *EmailAlertManager) Send(to []string, message string) error {
 	err := smtp.SendMail(smtpHost+":"+smtpPort, am.auth, from, to, msg)
 	if err != nil {
 		am.logger.Warnf("Email was mot sent: %v", err)
-		return fmt.Errorf("error sending email: %v", err)
 	}
 
 	am.logger.Infof("Emails were sent to: %v", to)
-	return nil
 }
