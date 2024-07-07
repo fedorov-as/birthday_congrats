@@ -167,7 +167,7 @@ func (repo *UsersMySQLRepo) GetByID(ctx context.Context, userID uint32) (*User, 
 
 	err := repo.db.QueryRowContext(
 		ctx,
-		"SELECT id, username, email, year, month, day FROM users WHERE user_id = ?",
+		"SELECT id, username, email, year, month, day FROM users WHERE id = ?",
 		userID,
 	).Scan(
 		&user.ID,

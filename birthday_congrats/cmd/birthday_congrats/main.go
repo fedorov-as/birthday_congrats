@@ -104,7 +104,8 @@ func main() {
 		wg.Wait()
 	}()
 
-	service.StartAlert(ctx, time.Now().Add(time.Minute*1), wg)
+	wg.Add(1)
+	go service.StartAlert(ctx, time.Now().Add(time.Minute), wg)
 
 	// хендлеры
 	serviceHandler := handlers.NewServiceHandler(

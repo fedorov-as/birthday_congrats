@@ -2,14 +2,16 @@ package alertmanager
 
 import (
 	"net/smtp"
-	"sync"
 
 	"go.uber.org/zap"
 )
 
 type EmailAlertManager struct {
-	auth   smtp.Auth
-	logger *zap.SugaredLogger
+	auth     smtp.Auth
+	smtpHost string
+	smtpPort string
+	from     string
+	logger   *zap.SugaredLogger
 }
 
 var _ AlertManager = &EmailAlertManager{}
@@ -24,31 +26,25 @@ func NewEmailAlertManager(
 	auth := smtp.PlainAuth("", from, password, smtpHost)
 
 	return &EmailAlertManager{
-		auth:   auth,
-		logger: logger,
+		auth:     auth,
+		smtpHost: smtpHost,
+		smtpPort: smtpPort,
+		from:     from,
+		logger:   logger,
 	}
 }
 
-const (
-	// Информация об отправителе (в продакшене я бы закинул это в credentials на github/gitlab)
-	from     = "birthday.congratulations@yandex.ru"
-	password = "ucgcgejoiguychfa"
-
-	// smtp сервер конфигурация
-	smtpHost = "smtp.yandex.ru"
-	smtpPort = "587"
-)
-
-func (am *EmailAlertManager) Send(to []string, message string, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (am *EmailAlertManager) Send(to []string, message string) {
+	// defer wg.Done()
 
 	// Сообщение.
 	msg := []byte(message)
 
 	// Отправка почты.
-	err := smtp.SendMail(smtpHost+":"+smtpPort, am.auth, from, to, msg)
+	err := smtp.SendMail(am.smtpHost+":"+am.smtpPort, am.auth, am.from, to, msg)
 	if err != nil {
-		am.logger.Warnf("Email was mot sent: %v", err)
+		am.logger.Warnf("Error while sending emails: %v", err)
+		return
 	}
 
 	am.logger.Infof("Emails were sent to: %v", to)

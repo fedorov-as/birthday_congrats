@@ -195,31 +195,42 @@ func (cs *CongratulationsService) Logout(ctx context.Context) error {
 
 func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, wg *sync.WaitGroup) {
 	if timeStart.Before(time.Now()) {
+		cs.logger.Infof("Alert service will start at %v", timeStart)
 		time.Sleep(time.Until(timeStart))
 	}
 
+	cs.logger.Infof("Starting alert service")
 	go cs.alert(ctx, wg)
 }
 
 func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	wg1 := &sync.WaitGroup{}
-	ticker := time.NewTicker(time.Hour * 24)
+	cs.logger.Infof("Alert service started")
+
+	// wg1 := &sync.WaitGroup{}
+	// defer wg1.Wait()
+
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
-			wg1.Wait()
+			cs.logger.Infof("Alert service was stopped")
 			return
 		case <-ticker.C:
 			messages, recipients, err := cs.makeMessages(ctx)
 			if err != nil {
 				cs.logger.Errorf("Error while making messages: %v", err)
+				continue
 			}
 
+			cs.logger.Infof("Sending %d different messages today", len(messages))
+
 			for i := range messages {
-				wg1.Add(1)
-				go cs.alerts.Send(recipients[i], messages[i], wg1)
+				// wg1.Add(1)
+				cs.alerts.Send(recipients[i], messages[i])
 			}
 		}
 	}
@@ -229,6 +240,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 	subscriptions, err := cs.usersRepo.GetAllSubscriptions(ctx)
 	if err != nil {
 		cs.logger.Errorf("Error getting all subscriptions: %v", err)
+		return nil, nil, fmt.Errorf("error getting subscriptions from repo")
 	}
 
 	if len(subscriptions) == 0 {
