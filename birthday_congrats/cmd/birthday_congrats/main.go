@@ -19,8 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// const debugPathToTemplates = "C:\\Users\\sasha\\Desktop\\job_search\\RuTube\\test_task\\birthday_congrats_repository\\birthday_congrats\\templates\\*"
-
 func main() {
 	templates := template.Must(template.ParseGlob("./templates/*"))
 
@@ -38,13 +36,9 @@ func main() {
 	logger := zapLogger.Sugar()
 
 	// база данных
-	// основные настройки к базе
-	dsn := "root:root@tcp(localhost:3306)/golang?"
-	// указываем кодировку
-	dsn += "&charset=utf8"
-	// отказываемся от prapared statements
-	// параметры подставляются сразу
-	dsn += "&interpolateParams=true"
+	dsn := "root:root@tcp(localhost:3306)/golang?" +
+		"&charset=utf8" +
+		"&interpolateParams=true"
 
 	dbMySQL, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -136,15 +130,20 @@ func main() {
 	mux := middlware.Logger(logger, router)
 	mux = middlware.Panic(logger, mux)
 
+	// запуск сервера
 	port := ":8080"
 	logger.Infow("Starting server",
 		"type", "START",
 		"addr", port)
-	err = http.ListenAndServe(port, mux)
-	if err != nil {
-		logger.Errorw("Error while starting server",
-			"type", "ERROR",
-			"addr", port,
-			"error", err)
-	}
+	go func() {
+		err = http.ListenAndServe(port, mux)
+		if err != nil {
+			logger.Errorw("Error while starting server",
+				"type", "ERROR",
+				"addr", port,
+				"error", err)
+		}
+	}()
+
+	fmt.Scanln()
 }

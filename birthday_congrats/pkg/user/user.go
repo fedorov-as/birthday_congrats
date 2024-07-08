@@ -42,9 +42,7 @@ type UsersRepo interface {
 	GetAll(ctx context.Context) ([]*User, error)
 	GetByID(ctx context.Context, userID uint32) (*User, error)
 	GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]Subscription, error)
-	// GetSubscribers(ctx context.Context, userID uint32) ([]uint32, error)
 	AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error
 	RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error
-	// GetSubscribedEmailsByDate(ctx context.Context, month, day int) (map[string][]string, error)
 	GetAllSubscriptions(ctx context.Context) ([]Subscription, error)
 }

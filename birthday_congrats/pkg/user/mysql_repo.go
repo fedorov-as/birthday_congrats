@@ -221,39 +221,6 @@ func (repo *UsersMySQLRepo) GetSubscriptionsByUser(ctx context.Context, userID u
 	return subscriptions, nil
 }
 
-// func (repo *UsersMySQLRepo) GetSubscribers(ctx context.Context, userID uint32) ([]uint32, error) {
-// 	subscribers := make([]uint32, 0, 10)
-
-// 	rows, err := repo.db.QueryContext(
-// 		ctx,
-// 		"SELECT subscriber_id FROM subscriptions WHERE subscription_id = ?",
-// 		userID,
-// 	)
-// 	if err != nil {
-// 		repo.logger.Errorf("Error while SELECT from db: %v", err)
-// 		return nil, fmt.Errorf("db error: %v", err)
-// 	}
-
-// 	for rows.Next() {
-// 		var id uint32
-// 		err = rows.Scan(&id)
-// 		if err != nil {
-// 			repo.logger.Errorf("Error while scanning from sql row: %v", err)
-// 			return nil, fmt.Errorf("db error: %v", err)
-// 		}
-
-// 		subscribers = append(subscribers, id)
-// 	}
-
-// 	err = rows.Close()
-// 	if err != nil {
-// 		repo.logger.Errorf("Error while closing sql rows: %v", err)
-// 		return nil, fmt.Errorf("db error: %v", err)
-// 	}
-
-// 	return subscribers, nil
-// }
-
 func (repo *UsersMySQLRepo) AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error {
 	result, err := repo.db.ExecContext(
 		ctx,
@@ -338,59 +305,3 @@ func (repo *UsersMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]Subscrip
 
 	return subscriptions, nil
 }
-
-// func (repo *UsersMySQLRepo) GetSubscribedEmailsByDate(ctx context.Context, month, day int) (map[string][]string, error) {
-// 	users := make([]*User, 0)
-
-// 	rows, err := repo.db.QueryContext(
-// 		ctx,
-// 		"SELECT id, username FROM users WHERE month = ? AND day = ?",
-// 		month,
-// 		day,
-// 	)
-// 	if err != nil {
-// 		repo.logger.Errorf("Error while SELECT from db: %v", err)
-// 		return nil, fmt.Errorf("db error: %v", err)
-// 	}
-
-// 	for rows.Next() {
-// 		user := &User{}
-// 		err = rows.Scan(&user.ID, &user.Username)
-// 		if err != nil {
-// 			repo.logger.Errorf("Error while scanning from sql row: %v", err)
-// 			return nil, fmt.Errorf("db error: %v", err)
-// 		}
-
-// 		users = append(users, user)
-// 	}
-
-// 	err = rows.Close()
-// 	if err != nil {
-// 		repo.logger.Errorf("Error while closing sql rows: %v", err)
-// 		return nil, fmt.Errorf("db error: %v", err)
-// 	}
-
-// 	emails := make(map[string][]string)
-
-// 	for _, user := range users {
-// 		emails[user.Username] = make([]string, 0)
-
-// 		subscribersID, err := repo.GetSubscribers(ctx, user.ID)
-// 		if err != nil {
-// 			repo.logger.Errorf("Error while getting subscribers: %v", err)
-// 			return nil, fmt.Errorf("internal error: %v", err)
-// 		}
-
-// 		for _, subscriberID := range subscribersID {
-// 			subscriber, err := repo.GetByID(ctx, subscriberID)
-// 			if err != nil {
-// 				repo.logger.Errorf("Error while getting user by id: %v", err)
-// 				return nil, fmt.Errorf("internal error: %v", err)
-// 			}
-
-// 			emails[user.Username] = append(emails[user.Username], subscriber.Email)
-// 		}
-// 	}
-
-// 	return emails, nil
-// }

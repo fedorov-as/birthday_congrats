@@ -1,13 +1,17 @@
 package alertmanager
 
 import (
-	"net/smtp"
+	"strings"
+	"sync"
+
+	"github.com/emersion/go-sasl"
+	"github.com/emersion/go-smtp"
 
 	"go.uber.org/zap"
 )
 
 type EmailAlertManager struct {
-	auth     smtp.Auth
+	auth     sasl.Client
 	smtpHost string
 	smtpPort string
 	from     string
@@ -23,7 +27,7 @@ func NewEmailAlertManager(
 	smtpPort string,
 	logger *zap.SugaredLogger,
 ) *EmailAlertManager {
-	auth := smtp.PlainAuth("", from, password, smtpHost)
+	auth := sasl.NewPlainClient("", "birthday.congratulations@yandex.ru", "ucgcgejoiguychfa")
 
 	return &EmailAlertManager{
 		auth:     auth,
@@ -34,11 +38,16 @@ func NewEmailAlertManager(
 	}
 }
 
-func (am *EmailAlertManager) Send(to []string, message string) {
-	// defer wg.Done()
+func (am *EmailAlertManager) Send(to []string, subject, message string, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	// Сообщение.
-	msg := []byte(message)
+	msg := strings.NewReader(
+		"From: " + am.from + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"\r\n" +
+			message + "\r\n",
+	)
 
 	// Отправка почты.
 	err := smtp.SendMail(am.smtpHost+":"+am.smtpPort, am.auth, am.from, to, msg)

@@ -43,16 +43,6 @@ func NewCongratulationsService(
 	}
 }
 
-// func (cs *CongratulationsService) GetAll(ctx context.Context) ([]*user.User, error) {
-// 	users, err := cs.usersRepo.GetAll(ctx)
-// 	if err != nil {
-// 		cs.logger.Errorf("Error while getting all users: %v", err)
-// 		return nil, fmt.Errorf("internal error")
-// 	}
-
-// 	return users, nil
-// }
-
 func (cs *CongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) {
 	birthday, err := time.Parse(dateLayout, birth)
 	if err != nil {
@@ -194,7 +184,7 @@ func (cs *CongratulationsService) Logout(ctx context.Context) error {
 }
 
 func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, wg *sync.WaitGroup) {
-	if timeStart.Before(time.Now()) {
+	if timeStart.After(time.Now()) {
 		cs.logger.Infof("Alert service will start at %v", timeStart)
 		time.Sleep(time.Until(timeStart))
 	}
@@ -208,11 +198,25 @@ func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup)
 
 	cs.logger.Infof("Alert service started")
 
-	// wg1 := &sync.WaitGroup{}
-	// defer wg1.Wait()
+	wg1 := &sync.WaitGroup{}
+	defer wg1.Wait()
 
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(time.Hour * 24)
 	defer ticker.Stop()
+
+	// первый раз делаем отправку сразу, затем по тикеру
+	messages, recipients, err := cs.makeMessages(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error while making messages: %v", err)
+		return
+	}
+
+	cs.logger.Infof("Sending %d different messages today", len(messages))
+
+	for i := range messages {
+		wg1.Add(1)
+		go cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i], wg1)
+	}
 
 	for {
 		select {
@@ -229,8 +233,8 @@ func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup)
 			cs.logger.Infof("Sending %d different messages today", len(messages))
 
 			for i := range messages {
-				// wg1.Add(1)
-				cs.alerts.Send(recipients[i], messages[i])
+				wg1.Add(1)
+				go cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i], wg1)
 			}
 		}
 	}
@@ -249,34 +253,15 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 
 	slices.SortFunc(subscriptions, func(a, b user.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
-	subID := subscriptions[0].Subscription
-	us, err := cs.usersRepo.GetByID(ctx, subID)
-	if err != nil {
-		cs.logger.Errorf("Error getting user by id: %v", err)
-		return nil, nil, fmt.Errorf("repo error: %v", err)
-	}
-
-	birthday := time.Date(
-		time.Now().Year(),
-		time.Month(us.Month),
-		us.Day,
-		0, 0, 0, 0,
-		time.UTC,
-	)
-	if birthday.Before(time.Now()) {
-		birthday = birthday.AddDate(1, 0, 0)
-	}
-
-	daysBefore := int(time.Until(birthday).Hours())/24 + 1
-
 	messages := make([]string, 0)
-	messages = append(messages, fmt.Sprintf("%s празднует свой день рождения через %d дней!", us.Username, daysBefore))
+	recipients := make([][]string, 0)
 
-	allRecipients := make([][]string, 0)
+	var subID uint32
+	var daysBefore int
 	to := make([]string, 0)
 
-	for _, sub := range subscriptions {
-		if sub.Subscription != subID {
+	for i, sub := range subscriptions {
+		if sub.Subscription != subID || i == 0 {
 			subID = sub.Subscription
 			us, err := cs.usersRepo.GetByID(ctx, subID)
 			if err != nil {
@@ -295,10 +280,15 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 				birthday = birthday.AddDate(1, 0, 0)
 			}
 
-			daysBefore := int(time.Until(birthday).Hours())/24 + 1
+			if len(to) > 0 {
+				recipients = append(recipients, to)
+			} else if len(messages) > 0 {
+				messages = messages[:len(messages)-1]
+			}
+
+			daysBefore = int(time.Until(birthday).Hours())/24 + 1
 			messages = append(messages, fmt.Sprintf("%s празднует свой день рождения через %d дней!", us.Username, daysBefore))
 
-			allRecipients = append(allRecipients, to)
 			to = make([]string, 0)
 		}
 
@@ -313,7 +303,11 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 		}
 	}
 
-	allRecipients = append(allRecipients, to)
+	if len(to) > 0 {
+		recipients = append(recipients, to)
+	} else if len(messages) > 0 {
+		messages = messages[:len(messages)-1]
+	}
 
-	return messages, allRecipients, nil
+	return messages, recipients, nil
 }
