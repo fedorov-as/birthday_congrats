@@ -1,7 +1,7 @@
 package middlware
 
 import (
-	"birthday_congrats/pkg/session"
+	"birthday_congrats/internal/pkg/session"
 	"net/http"
 
 	"go.uber.org/zap"

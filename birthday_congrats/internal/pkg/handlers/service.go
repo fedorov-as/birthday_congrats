@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"birthday_congrats/pkg/service"
-	"birthday_congrats/pkg/session"
-	"birthday_congrats/pkg/user"
+	"birthday_congrats/internal/pkg/session"
+	"birthday_congrats/internal/pkg/user"
+	service "birthday_congrats/internal/services/congrats_service"
 	"html/template"
 	"net/http"
 	"strconv"

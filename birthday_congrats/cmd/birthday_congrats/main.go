@@ -1,12 +1,12 @@
 package main
 
 import (
-	alertmanager "birthday_congrats/pkg/alert_manager"
-	"birthday_congrats/pkg/handlers"
-	"birthday_congrats/pkg/middlware"
-	"birthday_congrats/pkg/service"
-	"birthday_congrats/pkg/session"
-	"birthday_congrats/pkg/user"
+	alertmanager "birthday_congrats/internal/pkg/alert_manager"
+	"birthday_congrats/internal/pkg/handlers"
+	"birthday_congrats/internal/pkg/middlware"
+	"birthday_congrats/internal/pkg/session"
+	"birthday_congrats/internal/pkg/user"
+	service "birthday_congrats/internal/services/congrats_service"
 	"context"
 	"database/sql"
 	"fmt"

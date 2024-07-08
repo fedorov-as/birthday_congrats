@@ -1,9 +1,9 @@
-package service
+package congrats_service
 
 import (
-	alertmanager "birthday_congrats/pkg/alert_manager"
-	"birthday_congrats/pkg/session"
-	"birthday_congrats/pkg/user"
+	alertmanager "birthday_congrats/internal/pkg/alert_manager"
+	"birthday_congrats/internal/pkg/session"
+	"birthday_congrats/internal/pkg/user"
 	"context"
 	"fmt"
 	"slices"
