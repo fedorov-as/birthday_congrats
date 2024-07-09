@@ -71,7 +71,7 @@
 				
 				<option value="file7">birthday_congrats/internal/pkg/session/session.go (0.0%)</option>
 				
-				<option value="file8">birthday_congrats/internal/pkg/subscription/mysql_repo.go (0.0%)</option>
+				<option value="file8">birthday_congrats/internal/pkg/subscription/mysql_repo.go (100.0%)</option>
 				
 				<option value="file9">birthday_congrats/internal/pkg/user/mysql_repo.go (100.0%)</option>
 				
@@ -794,79 +794,69 @@ type SubscriptionsMySQLRepo struct {
 
 var _ SubscriptionsRepo = &amp;SubscriptionsMySQLRepo{}
 
-func NewSubscriptionsMySQLRepo(db *sql.DB, logger *zap.SugaredLogger) *SubscriptionsMySQLRepo <span class="cov0" title="0">{
+func NewSubscriptionsMySQLRepo(db *sql.DB, logger *zap.SugaredLogger) *SubscriptionsMySQLRepo <span class="cov8" title="1">{
         return &amp;SubscriptionsMySQLRepo{
                 db:     db,
                 logger: logger,
         }
 }</span>
 
-func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]Subscription, error) <span class="cov0" title="0">{
-        subscriptions := make([]Subscription, 0, 10)
+func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]*Subscription, error) <span class="cov8" title="1">{
+        subscriptions := make([]*Subscription, 0, 10)
 
         rows, err := repo.db.QueryContext(
                 ctx,
                 "SELECT subscriber_id, subscription_id, days_alert FROM subscriptions",
         )
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Error while SELECT from db: %v", err)
                 return nil, fmt.Errorf("db error: %v", err)
         }</span>
 
-        <span class="cov0" title="0">for rows.Next() </span><span class="cov0" title="0">{
-                var subscr Subscription
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                subscr := &amp;Subscription{}
                 err = rows.Scan(&amp;subscr.Subscriber, &amp;subscr.Subscription, &amp;subscr.DaysAlert)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         repo.logger.Errorf("Error while scanning from sql row: %v", err)
                         return nil, fmt.Errorf("db error: %v", err)
                 }</span>
 
-                <span class="cov0" title="0">subscriptions = append(subscriptions, subscr)</span>
+                <span class="cov8" title="1">subscriptions = append(subscriptions, subscr)</span>
         }
 
-        <span class="cov0" title="0">err = rows.Close()
-        if err != nil </span><span class="cov0" title="0">{
-                repo.logger.Errorf("Error while closing sql rows: %v", err)
-                return nil, fmt.Errorf("db error: %v", err)
-        }</span>
-
-        <span class="cov0" title="0">return subscriptions, nil</span>
+        <span class="cov8" title="1">return subscriptions, nil</span>
 }
 
-func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]Subscription, error) <span class="cov0" title="0">{
-        subscriptions := make([]Subscription, 0, 10)
+func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]*Subscription, error) <span class="cov8" title="1">{
+        subscriptions := make([]*Subscription, 0, 10)
 
         rows, err := repo.db.QueryContext(
                 ctx,
                 "SELECT subscription_id, days_alert FROM subscriptions WHERE subscriber_id = ?",
                 userID,
         )
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Error while SELECT from db: %v", err)
                 return nil, fmt.Errorf("db error: %v", err)
         }</span>
 
-        <span class="cov0" title="0">for rows.Next() </span><span class="cov0" title="0">{
-                var subscr Subscription
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                subscr := &amp;Subscription{
+                        Subscriber: userID,
+                }
                 err = rows.Scan(&amp;subscr.Subscription, &amp;subscr.DaysAlert)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         repo.logger.Errorf("Error while scanning from sql row: %v", err)
                         return nil, fmt.Errorf("db error: %v", err)
                 }</span>
 
-                <span class="cov0" title="0">subscriptions = append(subscriptions, subscr)</span>
+                <span class="cov8" title="1">subscriptions = append(subscriptions, subscr)</span>
         }
 
-        <span class="cov0" title="0">err = rows.Close()
-        if err != nil </span><span class="cov0" title="0">{
-                repo.logger.Errorf("Error while closing sql rows: %v", err)
-                return nil, fmt.Errorf("db error: %v", err)
-        }</span>
-
-        <span class="cov0" title="0">return subscriptions, nil</span>
+        <span class="cov8" title="1">return subscriptions, nil</span>
 }
 
-func (repo *SubscriptionsMySQLRepo) AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error <span class="cov0" title="0">{
+func (repo *SubscriptionsMySQLRepo) AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error <span class="cov8" title="1">{
         result, err := repo.db.ExecContext(
                 ctx,
                 "INSERT INTO subscriptions (`subscriber_id`, `subscription_id`, `days_alert`) VALUES (?, ?, ?)",
@@ -874,49 +864,49 @@ func (repo *SubscriptionsMySQLRepo) AddSubscription(ctx context.Context, subscri
                 subscriptionID,
                 daysAlert,
         )
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Error while INSERT into db: %v", err)
                 return fmt.Errorf("db error: %v", err)
         }</span>
 
         // проверка, что запись добавлена
-        <span class="cov0" title="0">affected, err := result.RowsAffected()
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Error in RowsAffected(): %v", err)
                 return fmt.Errorf("db error: %v", err)
         }</span>
-        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if affected == 0 </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Subscription was not added")
                 return ErrAddSubscription
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func (repo *SubscriptionsMySQLRepo) RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error <span class="cov0" title="0">{
+func (repo *SubscriptionsMySQLRepo) RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error <span class="cov8" title="1">{
         result, err := repo.db.ExecContext(
                 ctx,
                 "DELETE FROM subscriptions WHERE subscriber_id = ? AND subscription_id = ?",
                 subscriberID,
                 subscriptionID,
         )
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Error while DELETE from db: %v", err)
                 return fmt.Errorf("db error: %v", err)
         }</span>
 
         // проверка, что запись удалена
-        <span class="cov0" title="0">affected, err := result.RowsAffected()
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov8" title="1">{
                 repo.logger.Errorf("Error in RowsAffected(): %v", err)
                 return fmt.Errorf("db error: %v", err)
         }</span>
-        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if affected == 0 </span><span class="cov8" title="1">{
                 repo.logger.Warnf("Subscription was not removed")
                 return ErrRemoveSubscription
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		
@@ -1263,7 +1253,7 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
                 return nil, fmt.Errorf("internal error")
         }</span>
 
-        <span class="cov0" title="0">slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int </span><span class="cov0" title="0">{ return int(a.Subscription) - int(b.Subscription) }</span>)
+        <span class="cov0" title="0">slices.SortFunc(subscriptions, func(a, b *subscription.Subscription) int </span><span class="cov0" title="0">{ return int(a.Subscription) - int(b.Subscription) }</span>)
 
         <span class="cov0" title="0">i := 0
         for _, u := range users </span><span class="cov0" title="0">{
@@ -1363,7 +1353,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
                 return nil, nil, nil
         }</span>
 
-        <span class="cov0" title="0">slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int </span><span class="cov0" title="0">{ return int(a.Subscription) - int(b.Subscription) }</span>)
+        <span class="cov0" title="0">slices.SortFunc(subscriptions, func(a, b *subscription.Subscription) int </span><span class="cov0" title="0">{ return int(a.Subscription) - int(b.Subscription) }</span>)
 
         <span class="cov0" title="0">messages := make([]string, 0)
         recipients := make([][]string, 0)

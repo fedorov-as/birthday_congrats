@@ -155,7 +155,7 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 		return nil, fmt.Errorf("internal error")
 	}
 
-	slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
+	slices.SortFunc(subscriptions, func(a, b *subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
 	i := 0
 	for _, u := range users {
@@ -255,7 +255,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 		return nil, nil, nil
 	}
 
-	slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
+	slices.SortFunc(subscriptions, func(a, b *subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
 	messages := make([]string, 0)
 	recipients := make([][]string, 0)

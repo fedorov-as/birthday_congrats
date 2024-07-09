@@ -18,8 +18,8 @@ type Subscription struct {
 }
 
 type SubscriptionsRepo interface {
-	GetAllSubscriptions(ctx context.Context) ([]Subscription, error)
-	GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]Subscription, error)
+	GetAllSubscriptions(ctx context.Context) ([]*Subscription, error)
+	GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]*Subscription, error)
 	AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error
 	RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error
 }

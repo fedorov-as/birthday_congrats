@@ -23,8 +23,8 @@ func NewSubscriptionsMySQLRepo(db *sql.DB, logger *zap.SugaredLogger) *Subscript
 	}
 }
 
-func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]Subscription, error) {
-	subscriptions := make([]Subscription, 0, 10)
+func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]*Subscription, error) {
+	subscriptions := make([]*Subscription, 0, 10)
 
 	rows, err := repo.db.QueryContext(
 		ctx,
@@ -36,7 +36,7 @@ func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]
 	}
 
 	for rows.Next() {
-		var subscr Subscription
+		subscr := &Subscription{}
 		err = rows.Scan(&subscr.Subscriber, &subscr.Subscription, &subscr.DaysAlert)
 		if err != nil {
 			repo.logger.Errorf("Error while scanning from sql row: %v", err)
@@ -46,17 +46,11 @@ func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]
 		subscriptions = append(subscriptions, subscr)
 	}
 
-	err = rows.Close()
-	if err != nil {
-		repo.logger.Errorf("Error while closing sql rows: %v", err)
-		return nil, fmt.Errorf("db error: %v", err)
-	}
-
 	return subscriptions, nil
 }
 
-func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]Subscription, error) {
-	subscriptions := make([]Subscription, 0, 10)
+func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]*Subscription, error) {
+	subscriptions := make([]*Subscription, 0, 10)
 
 	rows, err := repo.db.QueryContext(
 		ctx,
@@ -69,7 +63,9 @@ func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, 
 	}
 
 	for rows.Next() {
-		var subscr Subscription
+		subscr := &Subscription{
+			Subscriber: userID,
+		}
 		err = rows.Scan(&subscr.Subscription, &subscr.DaysAlert)
 		if err != nil {
 			repo.logger.Errorf("Error while scanning from sql row: %v", err)
@@ -77,12 +73,6 @@ func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, 
 		}
 
 		subscriptions = append(subscriptions, subscr)
-	}
-
-	err = rows.Close()
-	if err != nil {
-		repo.logger.Errorf("Error while closing sql rows: %v", err)
-		return nil, fmt.Errorf("db error: %v", err)
 	}
 
 	return subscriptions, nil
