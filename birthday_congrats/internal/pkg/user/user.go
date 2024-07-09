@@ -11,9 +11,6 @@ var (
 	ErrUserNotCreated = errors.New("user was not created")
 	ErrNoUser         = errors.New("no such user")
 	ErrBadPassword    = errors.New("bad password")
-
-	ErrAddSubscription    = errors.New("subscription was not added")
-	ErrRemoveSubscription = errors.New("no subscription to remove")
 )
 
 type User struct {
@@ -30,19 +27,9 @@ type User struct {
 	DaysAlert    int
 }
 
-type Subscription struct {
-	Subscriber   uint32
-	Subscription uint32
-	DaysAlert    int
-}
-
 type UsersRepo interface {
 	Create(ctx context.Context, username, password, email string, year, month, day int) (*User, error)
 	Login(ctx context.Context, username, password string) (*User, error)
 	GetAll(ctx context.Context) ([]*User, error)
 	GetByID(ctx context.Context, userID uint32) (*User, error)
-	GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]Subscription, error)
-	AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error
-	RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error
-	GetAllSubscriptions(ctx context.Context) ([]Subscription, error)
 }

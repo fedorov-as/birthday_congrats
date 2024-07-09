@@ -5,6 +5,7 @@ import (
 	"birthday_congrats/internal/pkg/handlers"
 	"birthday_congrats/internal/pkg/middlware"
 	"birthday_congrats/internal/pkg/session"
+	"birthday_congrats/internal/pkg/subscription"
 	"birthday_congrats/internal/pkg/user"
 	service "birthday_congrats/internal/services/congrats_service"
 	"context"
@@ -61,8 +62,13 @@ func main() {
 		return
 	}
 
-	// репозиторий
+	// репозитории
 	usersRepo := user.NewUsersMySQLRepo(
+		dbMySQL,
+		logger,
+	)
+
+	subscriptionsRepo := subscription.NewSubscriptionsMySQLRepo(
 		dbMySQL,
 		logger,
 	)
@@ -90,6 +96,7 @@ func main() {
 	// сам сервис
 	service := service.NewCongratulationsService(
 		usersRepo,
+		subscriptionsRepo,
 		sm,
 		am,
 		logger,

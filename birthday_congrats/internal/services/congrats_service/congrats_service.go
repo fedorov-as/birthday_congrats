@@ -3,6 +3,7 @@ package congrats_service
 import (
 	alertmanager "birthday_congrats/internal/pkg/alert_manager"
 	"birthday_congrats/internal/pkg/session"
+	"birthday_congrats/internal/pkg/subscription"
 	"birthday_congrats/internal/pkg/user"
 	"context"
 	"fmt"
@@ -23,23 +24,26 @@ var (
 )
 
 type CongratulationsService struct {
-	usersRepo user.UsersRepo
-	sm        session.SessionsManager
-	alerts    alertmanager.AlertManager
-	logger    *zap.SugaredLogger
+	usersRepo         user.UsersRepo
+	subscriptionsRepo subscription.SubscriptionsRepo
+	sm                session.SessionsManager
+	alerts            alertmanager.AlertManager
+	logger            *zap.SugaredLogger
 }
 
 func NewCongratulationsService(
 	usersRepo user.UsersRepo,
+	subscriptionsRepo subscription.SubscriptionsRepo,
 	sm session.SessionsManager,
 	alerts alertmanager.AlertManager,
 	logger *zap.SugaredLogger,
 ) *CongratulationsService {
 	return &CongratulationsService{
-		usersRepo: usersRepo,
-		sm:        sm,
-		alerts:    alerts,
-		logger:    logger,
+		usersRepo:         usersRepo,
+		subscriptionsRepo: subscriptionsRepo,
+		sm:                sm,
+		alerts:            alerts,
+		logger:            logger,
 	}
 }
 
@@ -104,7 +108,7 @@ func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID 
 		return err
 	}
 
-	err = cs.usersRepo.AddSubscription(ctx, sess.UserID, subscriptionID, daysAlert)
+	err = cs.subscriptionsRepo.AddSubscription(ctx, sess.UserID, subscriptionID, daysAlert)
 	if err != nil {
 		cs.logger.Errorf("Error adding subscription: %v", err)
 		return fmt.Errorf("Internal error")
@@ -120,12 +124,12 @@ func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionI
 		return err
 	}
 
-	err = cs.usersRepo.RemoveSubscription(ctx, sess.UserID, subscriptionID)
-	if err != nil && err != user.ErrRemoveSubscription {
+	err = cs.subscriptionsRepo.RemoveSubscription(ctx, sess.UserID, subscriptionID)
+	if err != nil && err != subscription.ErrRemoveSubscription {
 		cs.logger.Errorf("Error removing subscription: %v", err)
 		return fmt.Errorf("Internal error")
 	}
-	if err == user.ErrRemoveSubscription {
+	if err == subscription.ErrRemoveSubscription {
 		cs.logger.Warnf("Subscription was not removed")
 	}
 
@@ -145,13 +149,13 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 		return nil, session.ErrNoSession
 	}
 
-	subscriptions, err := cs.usersRepo.GetSubscriptionsByUser(ctx, sess.UserID)
+	subscriptions, err := cs.subscriptionsRepo.GetSubscriptionsByUser(ctx, sess.UserID)
 	if err != nil {
 		cs.logger.Errorf("Error getting subscriptions: %v", err)
 		return nil, fmt.Errorf("internal error")
 	}
 
-	slices.SortFunc(subscriptions, func(a, b user.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
+	slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
 	i := 0
 	for _, u := range users {
@@ -241,7 +245,7 @@ func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup)
 }
 
 func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [][]string, error) {
-	subscriptions, err := cs.usersRepo.GetAllSubscriptions(ctx)
+	subscriptions, err := cs.subscriptionsRepo.GetAllSubscriptions(ctx)
 	if err != nil {
 		cs.logger.Errorf("Error getting all subscriptions: %v", err)
 		return nil, nil, fmt.Errorf("error getting subscriptions from repo")
@@ -251,7 +255,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 		return nil, nil, nil
 	}
 
-	slices.SortFunc(subscriptions, func(a, b user.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
+	slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
 	messages := make([]string, 0)
 	recipients := make([][]string, 0)
