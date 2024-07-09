@@ -67,9 +67,9 @@
 				
 				<option value="file5">birthday_congrats/internal/pkg/middlware/panic.go (0.0%)</option>
 				
-				<option value="file6">birthday_congrats/internal/pkg/session/mysql_manager.go (0.0%)</option>
+				<option value="file6">birthday_congrats/internal/pkg/session/mysql_manager.go (46.0%)</option>
 				
-				<option value="file7">birthday_congrats/internal/pkg/session/session.go (0.0%)</option>
+				<option value="file7">birthday_congrats/internal/pkg/session/session.go (50.0%)</option>
 				
 				<option value="file8">birthday_congrats/internal/pkg/subscription/mysql_repo.go (100.0%)</option>
 				
@@ -595,7 +595,7 @@ type MySQLSessionsManager struct {
 
 var _ SessionsManager = &amp;MySQLSessionsManager{}
 
-func NewMySQLSessionsManager(db *sql.DB, logger *zap.SugaredLogger, expiresTime int64, sessIDLength int) *MySQLSessionsManager <span class="cov0" title="0">{
+func NewMySQLSessionsManager(db *sql.DB, logger *zap.SugaredLogger, expiresTime int64, sessIDLength int) *MySQLSessionsManager <span class="cov8" title="1">{
         return &amp;MySQLSessionsManager{
                 db:           db,
                 logger:       logger,
@@ -604,7 +604,7 @@ func NewMySQLSessionsManager(db *sql.DB, logger *zap.SugaredLogger, expiresTime 
         }
 }</span>
 
-func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Session, error) <span class="cov0" title="0">{
+func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Session, error) <span class="cov8" title="1">{
         newSession := newSession(sm.sessIDLength, userID, time.Now().Unix()+sm.expiresTime)
 
         result, err := sm.db.ExecContext(
@@ -614,33 +614,33 @@ func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Ses
                 newSession.UserID,
                 newSession.Expires,
         )
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Error while INSERT into db: %v", err)
                 return nil, fmt.Errorf("db error: %v", err)
         }</span>
 
         // проверка, что запись добавлена
-        <span class="cov0" title="0">affected, err := result.RowsAffected()
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Error in RowsAffected(): %v", err)
                 return nil, fmt.Errorf("db error: %v", err)
         }</span>
-        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if affected == 0 </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Subscription was not added")
                 return nil, ErrSessionNotCreated
         }</span>
 
-        <span class="cov0" title="0">return &amp;newSession, nil</span>
+        <span class="cov8" title="1">return &amp;newSession, nil</span>
 }
 
-func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span class="cov0" title="0">{
+func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span class="cov8" title="1">{
         cookie, err := r.Cookie("session_id")
         if err != nil </span><span class="cov0" title="0">{
                 sm.logger.Warnf("No session cookie found")
                 return nil, ErrNoSession
         }</span>
 
-        <span class="cov0" title="0">sessID := cookie.Value
+        <span class="cov8" title="1">sessID := cookie.Value
 
         // проверка, что сессия существует
         sess := &amp;Session{
@@ -658,13 +658,13 @@ func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span c
                 sm.logger.Errorf("Error while SELECT from db: %v", err)
                 return nil, fmt.Errorf("db error: %v", err)
         }</span>
-        <span class="cov0" title="0">if err == sql.ErrNoRows </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err == sql.ErrNoRows </span><span class="cov0" title="0">{
                 sm.logger.Warnf("No session found in db")
                 return nil, ErrNoSession
         }</span>
 
         // проверка, что сессия не истекла
-        <span class="cov0" title="0">if sess.Expires &lt; time.Now().Unix() </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if sess.Expires &lt; time.Now().Unix() </span><span class="cov0" title="0">{
                 err := sm.Destroy(r.Context())
                 if err != nil </span><span class="cov0" title="0">{
                         sm.logger.Errorf("Error while destroying session: %v", err)
@@ -674,7 +674,7 @@ func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span c
                 <span class="cov0" title="0">return nil, ErrSessionExpired</span>
         }
 
-        <span class="cov0" title="0">return sess, nil</span>
+        <span class="cov8" title="1">return sess, nil</span>
 }
 
 func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error <span class="cov0" title="0">{
@@ -738,7 +738,7 @@ type SessionsManager interface {
         Destroy(ctx context.Context) error
 }
 
-func newSession(sessIDLength int, userID uint32, expires int64) Session <span class="cov0" title="0">{
+func newSession(sessIDLength int, userID uint32, expires int64) Session <span class="cov8" title="1">{
         return Session{
                 SessID:  RandStringRunes(sessIDLength),
                 UserID:  userID,
@@ -750,12 +750,12 @@ var (
         letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
-func RandStringRunes(n int) string <span class="cov0" title="0">{
+func RandStringRunes(n int) string <span class="cov8" title="1">{
         b := make([]rune, n)
-        for i := range b </span><span class="cov0" title="0">{
+        for i := range b </span><span class="cov8" title="1">{
                 b[i] = letterRunes[rand.Intn(len(letterRunes))]
         }</span>
-        <span class="cov0" title="0">return string(b)</span>
+        <span class="cov8" title="1">return string(b)</span>
 }
 
 type sessKey string

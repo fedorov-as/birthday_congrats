@@ -37,7 +37,7 @@ func TestCreate(t *testing.T) {
 
 	testRepo := NewUsersMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	userID := uint32(0)
 	username := "some_user"
 	password := "some_pass"
@@ -192,7 +192,7 @@ func TestLogin(t *testing.T) {
 
 	testRepo := NewUsersMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	userID := uint32(0)
 	username := "some_user"
 	password := "some_pass"
@@ -314,7 +314,7 @@ func TestGetAll(t *testing.T) {
 
 	testRepo := NewUsersMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	usersExpected := []*User{
 		{
 			ID:       uint32(0),
@@ -406,7 +406,7 @@ func TestGetByID(t *testing.T) {
 
 	testRepo := NewUsersMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	userExpected := &User{
 		ID:       uint32(0),
 		Username: "some_user",

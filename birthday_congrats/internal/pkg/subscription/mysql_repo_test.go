@@ -37,7 +37,7 @@ func TestGetAllSubscriptions(t *testing.T) {
 
 	testRepo := NewSubscriptionsMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	subsExpected := []*Subscription{
 		{
 			Subscriber:   uint32(0),
@@ -117,7 +117,7 @@ func TestGetSubscriptionsByUser(t *testing.T) {
 
 	testRepo := NewSubscriptionsMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	subscriberID := uint32(42)
 	subsExpected := []*Subscription{
 		{
@@ -195,7 +195,7 @@ func TestAddSubscription(t *testing.T) {
 
 	testRepo := NewSubscriptionsMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	subExpeceted := &Subscription{
 		Subscriber:   uint32(10),
 		Subscription: uint32(42),
@@ -266,7 +266,7 @@ func TestRemoveSubscription(t *testing.T) {
 
 	testRepo := NewSubscriptionsMySQLRepo(db, zap.NewNop().Sugar())
 
-	// общие данные для теста
+	// данные для теста
 	subExpeceted := &Subscription{
 		Subscriber:   uint32(10),
 		Subscription: uint32(42),
