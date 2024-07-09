@@ -19,6 +19,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	minutesBeforeStartAlerts = 5
+	logoutTimeoutMinutes     = 60
+)
+
 func main() {
 	templates := template.Must(template.ParseGlob("./templates/*"))
 
@@ -66,7 +71,7 @@ func main() {
 	sm := session.NewMySQLSessionsManager(
 		dbMySQL,
 		logger,
-		int64(time.Minute/time.Second),
+		int64(time.Minute*logoutTimeoutMinutes/time.Second),
 		16,
 	)
 
@@ -99,7 +104,7 @@ func main() {
 	}()
 
 	wg.Add(1)
-	go service.StartAlert(ctx, time.Now().Add(time.Minute), wg)
+	go service.StartAlert(ctx, time.Now().Add(time.Minute*minutesBeforeStartAlerts), wg)
 
 	// хендлеры
 	serviceHandler := handlers.NewServiceHandler(
