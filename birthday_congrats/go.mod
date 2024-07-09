@@ -16,4 +16,5 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.27.0
+	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 )
