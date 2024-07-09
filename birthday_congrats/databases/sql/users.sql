@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `username` text NOT NULL,
-  `password` text NOT NULL,
+  `username` text NOT NULL COLLATE utf8_bin,
+  `password` text NOT NULL COLLATE utf8_bin,
   `email` text NOT NULL,
   `year` int NOT NULL,
   `month` int NOT NULL,

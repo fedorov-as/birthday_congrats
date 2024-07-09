@@ -129,7 +129,7 @@ func (repo *UsersMySQLRepo) GetAll(ctx context.Context) ([]*User, error) {
 
 	rows, err := repo.db.QueryContext(
 		ctx,
-		"SELECT id, username, year, month, day FROM users",
+		"SELECT id, username, email, year, month, day FROM users",
 	)
 	if err != nil {
 		repo.logger.Errorf("Error while SELECT from db: %v", err)
@@ -141,6 +141,7 @@ func (repo *UsersMySQLRepo) GetAll(ctx context.Context) ([]*User, error) {
 		err = rows.Scan(
 			&user.ID,
 			&user.Username,
+			&user.Email,
 			&user.Year,
 			&user.Month,
 			&user.Day,
@@ -151,12 +152,6 @@ func (repo *UsersMySQLRepo) GetAll(ctx context.Context) ([]*User, error) {
 		}
 
 		users = append(users, user)
-	}
-
-	err = rows.Close()
-	if err != nil {
-		repo.logger.Errorf("Error while closing sql rows: %v", err)
-		return nil, fmt.Errorf("db error: %v", err)
 	}
 
 	return users, nil

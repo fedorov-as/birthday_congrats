@@ -1,0 +1,1457 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>birthday_congrats: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">birthday_congrats/cmd/birthday_congrats/main.go (0.0%)</option>
+				
+				<option value="file1">birthday_congrats/internal/pkg/alert_manager/email_alert_manager.go (0.0%)</option>
+				
+				<option value="file2">birthday_congrats/internal/pkg/handlers/service.go (0.0%)</option>
+				
+				<option value="file3">birthday_congrats/internal/pkg/middlware/auth.go (0.0%)</option>
+				
+				<option value="file4">birthday_congrats/internal/pkg/middlware/logger.go (0.0%)</option>
+				
+				<option value="file5">birthday_congrats/internal/pkg/middlware/panic.go (0.0%)</option>
+				
+				<option value="file6">birthday_congrats/internal/pkg/session/mysql_manager.go (0.0%)</option>
+				
+				<option value="file7">birthday_congrats/internal/pkg/session/session.go (0.0%)</option>
+				
+				<option value="file8">birthday_congrats/internal/pkg/subscription/mysql_repo.go (0.0%)</option>
+				
+				<option value="file9">birthday_congrats/internal/pkg/user/mysql_repo.go (100.0%)</option>
+				
+				<option value="file10">birthday_congrats/internal/services/congrats_service/congrats_service.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        alertmanager "birthday_congrats/internal/pkg/alert_manager"
+        "birthday_congrats/internal/pkg/handlers"
+        "birthday_congrats/internal/pkg/middlware"
+        "birthday_congrats/internal/pkg/session"
+        "birthday_congrats/internal/pkg/subscription"
+        "birthday_congrats/internal/pkg/user"
+        service "birthday_congrats/internal/services/congrats_service"
+        "context"
+        "database/sql"
+        "fmt"
+        "html/template"
+        "net/http"
+        "sync"
+        "time"
+
+        "github.com/gorilla/mux"
+        "go.uber.org/zap"
+)
+
+const (
+        minutesBeforeStartAlerts = 5
+        logoutTimeoutMinutes     = 60
+)
+
+func main() <span class="cov0" title="0">{
+        templates := template.Must(template.ParseGlob("./templates/*"))
+
+        // логгер
+        zapLogger, err := zap.NewProduction()
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Printf("Error while creating zap logger: %v", err)
+        }</span>
+        <span class="cov0" title="0">defer func() </span><span class="cov0" title="0">{
+                err = zapLogger.Sync()
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error while zapLogger.Symc(): %v", err)
+                }</span>
+        }()
+        <span class="cov0" title="0">logger := zapLogger.Sugar()
+
+        // база данных
+        dsn := "root:root@tcp(localhost:3306)/golang?" +
+                "&amp;charset=utf8" +
+                "&amp;interpolateParams=true"
+
+        dbMySQL, err := sql.Open("mysql", dsn)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Errorf("Cant open connection to usersDB: %v", err)
+                return
+        }</span>
+        <span class="cov0" title="0">defer dbMySQL.Close()
+        logger.Infow("Connected to MySQL database")
+
+        dbMySQL.SetMaxOpenConns(10)
+
+        err = dbMySQL.Ping()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Errorf("No connection to dbMySQL: %v", err)
+                return
+        }</span>
+
+        // репозитории
+        <span class="cov0" title="0">usersRepo := user.NewUsersMySQLRepo(
+                dbMySQL,
+                logger,
+        )
+
+        subscriptionsRepo := subscription.NewSubscriptionsMySQLRepo(
+                dbMySQL,
+                logger,
+        )
+
+        // менеджер сессий
+        sm := session.NewMySQLSessionsManager(
+                dbMySQL,
+                logger,
+                int64(time.Minute*logoutTimeoutMinutes/time.Second),
+                16,
+        )
+
+        // менеджер отправки писем
+        am := alertmanager.NewEmailAlertManager(
+                // Информация об отправителе (в продакшене я бы закинул это в credentials на github/gitlab)
+                "birthday.congratulations@yandex.ru",
+                "ucgcgejoiguychfa",
+
+                // smtp сервер конфигурация
+                "smtp.yandex.ru",
+                "587",
+                logger,
+        )
+
+        // сам сервис
+        service := service.NewCongratulationsService(
+                usersRepo,
+                subscriptionsRepo,
+                sm,
+                am,
+                logger,
+        )
+
+        // запускаем сервис оповещений
+        ctx, cancel := context.WithCancel(context.Background())
+        wg := &amp;sync.WaitGroup{}
+        defer func() </span><span class="cov0" title="0">{
+                cancel()
+                wg.Wait()
+        }</span>()
+
+        <span class="cov0" title="0">wg.Add(1)
+        go service.StartAlert(ctx, time.Now().Add(time.Minute*minutesBeforeStartAlerts), wg)
+
+        // хендлеры
+        serviceHandler := handlers.NewServiceHandler(
+                templates,
+                service,
+                sm,
+                logger,
+        )
+
+        // роутер
+        router := mux.NewRouter()
+        router.HandleFunc("/", serviceHandler.Index).Methods("GET")
+        router.HandleFunc("/register", serviceHandler.Register).Methods("POST")
+        router.HandleFunc("/login", serviceHandler.Login).Methods("POST")
+        router.HandleFunc("/error", serviceHandler.Error).Methods("GET")
+
+        // хендлеры, требующие авторизации
+        router.Handle("/users",
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Users)))
+        router.Handle("/subscribe/{user_id}",
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Subscribe)))
+        router.Handle("/unsubscribe/{user_id}",
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Unsubscribe)))
+        router.Handle("/logout",
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Logout)))
+
+        // добавляем миддлверы
+        mux := middlware.Logger(logger, router)
+        mux = middlware.Panic(logger, mux)
+
+        // запуск сервера
+        port := ":8080"
+        logger.Infow("Starting server",
+                "type", "START",
+                "addr", port)
+        go func() </span><span class="cov0" title="0">{
+                err = http.ListenAndServe(port, mux)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Errorw("Error while starting server",
+                                "type", "ERROR",
+                                "addr", port,
+                                "error", err)
+                }</span>
+        }()
+
+        <span class="cov0" title="0">fmt.Scanln()</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package alertmanager
+
+import (
+        "strings"
+        "sync"
+
+        "github.com/emersion/go-sasl"
+        "github.com/emersion/go-smtp"
+
+        "go.uber.org/zap"
+)
+
+type EmailAlertManager struct {
+        auth     sasl.Client
+        smtpHost string
+        smtpPort string
+        from     string
+        logger   *zap.SugaredLogger
+}
+
+var _ AlertManager = &amp;EmailAlertManager{}
+
+func NewEmailAlertManager(
+        from string,
+        password string,
+        smtpHost string,
+        smtpPort string,
+        logger *zap.SugaredLogger,
+) *EmailAlertManager <span class="cov0" title="0">{
+        auth := sasl.NewPlainClient("", "birthday.congratulations@yandex.ru", "ucgcgejoiguychfa")
+
+        return &amp;EmailAlertManager{
+                auth:     auth,
+                smtpHost: smtpHost,
+                smtpPort: smtpPort,
+                from:     from,
+                logger:   logger,
+        }
+}</span>
+
+func (am *EmailAlertManager) Send(to []string, subject, message string, wg *sync.WaitGroup) <span class="cov0" title="0">{
+        defer wg.Done()
+
+        // Сообщение.
+        msg := strings.NewReader(
+                "From: " + am.from + "\r\n" +
+                        "Subject: " + subject + "\r\n" +
+                        "\r\n" +
+                        message + "\r\n",
+        )
+
+        // Отправка почты.
+        err := smtp.SendMail(am.smtpHost+":"+am.smtpPort, am.auth, am.from, to, msg)
+        if err != nil </span><span class="cov0" title="0">{
+                am.logger.Warnf("Error while sending emails: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">am.logger.Infof("Emails were sent to: %v", to)</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handlers
+
+import (
+        "birthday_congrats/internal/pkg/session"
+        "birthday_congrats/internal/pkg/user"
+        service "birthday_congrats/internal/services/congrats_service"
+        "html/template"
+        "net/http"
+        "strconv"
+        "time"
+
+        "github.com/gorilla/mux"
+        "go.uber.org/zap"
+)
+
+type ServiceHandler struct {
+        tmpl    *template.Template
+        service *service.CongratulationsService
+        sm      session.SessionsManager
+        logger  *zap.SugaredLogger
+}
+
+func NewServiceHandler(
+        tmpl *template.Template,
+        service *service.CongratulationsService,
+        sm session.SessionsManager,
+        logger *zap.SugaredLogger,
+) *ServiceHandler <span class="cov0" title="0">{
+        return &amp;ServiceHandler{
+                tmpl:    tmpl,
+                service: service,
+                sm:      sm,
+                logger:  logger,
+        }
+}</span>
+
+func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string) <span class="cov0" title="0">{
+        err := h.tmpl.ExecuteTemplate(w, "error.html", struct {
+                Message string
+        }{
+                Message: message,
+        })
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Template error: %v", err)
+        }</span>
+}
+
+func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        sess, err := h.sm.Check(r)
+        if err == nil </span><span class="cov0" title="0">{
+                ctx := session.ContextWithSession(r.Context(), sess)
+                http.Redirect(w, r.WithContext(ctx), "/users", http.StatusFound)
+                return
+        }</span>
+
+        <span class="cov0" title="0">err = h.tmpl.ExecuteTemplate(w, "login.html", nil)
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("template error: %v", err)
+        }</span>
+}
+
+func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        h.execErrorTemplate(w, "Произошла ошибка")
+}</span>
+
+func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        sess, err := h.service.Register(
+                r.Context(),
+                r.FormValue("username"),
+                r.FormValue("password"),
+                r.FormValue("email"),
+                r.FormValue("birth"),
+        )
+        if err != nil &amp;&amp; err != user.ErrUserExists </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error while registration: %v", err)
+        }</span>
+        <span class="cov0" title="0">if err == user.ErrUserExists </span><span class="cov0" title="0">{
+                h.execErrorTemplate(w, "Пользоваель с таким именем уже существует")
+
+                return
+        }</span>
+
+        <span class="cov0" title="0">http.SetCookie(w, &amp;http.Cookie{
+                Name:    "session_id",
+                Value:   sess.SessID,
+                Expires: time.Unix(sess.Expires, 0),
+        })
+
+        http.Redirect(w, r, "/users", http.StatusFound)</span>
+}
+
+func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        sess, err := h.service.Login(
+                r.Context(),
+                r.FormValue("username"),
+                r.FormValue("password"),
+        )
+        if err != nil &amp;&amp; err != user.ErrNoUser </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error while registration: %v", err)
+        }</span>
+        <span class="cov0" title="0">if err == user.ErrNoUser </span><span class="cov0" title="0">{
+                h.execErrorTemplate(w, "Неверный логин или пароль")
+
+                return
+        }</span>
+
+        <span class="cov0" title="0">http.SetCookie(w, &amp;http.Cookie{
+                Name:    "session_id",
+                Value:   sess.SessID,
+                Expires: time.Unix(sess.Expires, 0),
+        })
+
+        http.Redirect(w, r, "/users", http.StatusFound)</span>
+}
+
+func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        users, err := h.service.GetSubscriptions(r.Context())
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error getting all users: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">err = h.tmpl.ExecuteTemplate(w, "users.html", struct {
+                Users []*user.User
+        }{
+                Users: users,
+        })
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Template error: %v", err)
+        }</span>
+}
+
+func (h *ServiceHandler) Subscribe(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error converting string to int: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">daysAlert, err := strconv.Atoi(r.FormValue("days_alert"))
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error converting string to int: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">err = h.service.Subscribe(r.Context(), uint32(subscriptionID), daysAlert)
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error while subscribing: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">http.Redirect(w, r, "/users", http.StatusFound)</span>
+}
+
+func (h *ServiceHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error converting string to int: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">err = h.service.Unsubscribe(r.Context(), uint32(subscriptionID))
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error while subscribing: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">http.Redirect(w, r, "/users", http.StatusFound)</span>
+}
+
+func (h *ServiceHandler) Logout(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        err := h.service.Logout(r.Context())
+        if err != nil &amp;&amp; err != session.ErrNotDestroyed </span><span class="cov0" title="0">{
+                h.logger.Errorf("Error while logout: %v", err)
+        }</span>
+        <span class="cov0" title="0">if err == session.ErrNotDestroyed </span><span class="cov0" title="0">{
+                h.logger.Warnf("Session was not destroyed")
+        }</span>
+
+        <span class="cov0" title="0">cookie, err := r.Cookie("session_id")
+        if err != nil </span><span class="cov0" title="0">{
+                h.logger.Warnf("No cookie found")
+        }</span>
+
+        <span class="cov0" title="0">cookie.Expires = time.Now().AddDate(0, 0, -1)
+        http.SetCookie(w, cookie)
+
+        http.Redirect(w, r, "/", http.StatusFound)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package middlware
+
+import (
+        "birthday_congrats/internal/pkg/session"
+        "net/http"
+
+        "go.uber.org/zap"
+)
+
+func Auth(sm session.SessionsManager, logger *zap.SugaredLogger, next http.Handler) http.Handler <span class="cov0" title="0">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                sess, err := sm.Check(r)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Warnf("auth error: %v", err)
+                        http.Redirect(w, r, "/error", http.StatusFound)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">ctx := session.ContextWithSession(r.Context(), sess)
+                next.ServeHTTP(w, r.WithContext(ctx))</span>
+        })
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package middlware
+
+import (
+        "net/http"
+        "time"
+
+        "go.uber.org/zap"
+)
+
+func Logger(logger *zap.SugaredLogger, next http.Handler) http.Handler <span class="cov0" title="0">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                start := time.Now()
+                next.ServeHTTP(w, r)
+
+                logger.Infow("Request",
+                        "method", r.Method,
+                        "remote_address", r.RemoteAddr,
+                        "url", r.URL.Path,
+                        "duration", time.Since(start))
+        }</span>)
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package middlware
+
+import (
+        "net/http"
+
+        "go.uber.org/zap"
+)
+
+func Panic(logger *zap.SugaredLogger, next http.Handler) http.Handler <span class="cov0" title="0">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                defer func() </span><span class="cov0" title="0">{
+                        if err := recover(); err != nil </span><span class="cov0" title="0">{
+                                logger.Warnf("Panic recovered: %v", err)
+                                http.Redirect(w, r, "/error", http.StatusInternalServerError)
+                        }</span>
+                }()
+                <span class="cov0" title="0">next.ServeHTTP(w, r)</span>
+        })
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package session
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "net/http"
+        "time"
+
+        _ "github.com/go-sql-driver/mysql"
+        "go.uber.org/zap"
+)
+
+type MySQLSessionsManager struct {
+        db     *sql.DB
+        logger *zap.SugaredLogger
+
+        expiresTime  int64
+        sessIDLength int
+}
+
+var _ SessionsManager = &amp;MySQLSessionsManager{}
+
+func NewMySQLSessionsManager(db *sql.DB, logger *zap.SugaredLogger, expiresTime int64, sessIDLength int) *MySQLSessionsManager <span class="cov0" title="0">{
+        return &amp;MySQLSessionsManager{
+                db:           db,
+                logger:       logger,
+                expiresTime:  expiresTime,
+                sessIDLength: sessIDLength,
+        }
+}</span>
+
+func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Session, error) <span class="cov0" title="0">{
+        newSession := newSession(sm.sessIDLength, userID, time.Now().Unix()+sm.expiresTime)
+
+        result, err := sm.db.ExecContext(
+                ctx,
+                "INSERT INTO sessions (`sess_id`, `user_id`, `expires`) VALUES (?, ?, ?)",
+                newSession.SessID,
+                newSession.UserID,
+                newSession.Expires,
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Error while INSERT into db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        // проверка, что запись добавлена
+        <span class="cov0" title="0">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Error in RowsAffected(): %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Subscription was not added")
+                return nil, ErrSessionNotCreated
+        }</span>
+
+        <span class="cov0" title="0">return &amp;newSession, nil</span>
+}
+
+func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span class="cov0" title="0">{
+        cookie, err := r.Cookie("session_id")
+        if err != nil </span><span class="cov0" title="0">{
+                sm.logger.Warnf("No session cookie found")
+                return nil, ErrNoSession
+        }</span>
+
+        <span class="cov0" title="0">sessID := cookie.Value
+
+        // проверка, что сессия существует
+        sess := &amp;Session{
+                SessID: sessID,
+        }
+        err = sm.db.QueryRowContext(
+                r.Context(),
+                "SELECT user_id, expires FROM sessions WHERE sess_id = ?",
+                sessID,
+        ).Scan(
+                &amp;sess.UserID,
+                &amp;sess.Expires,
+        )
+        if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov0" title="0">if err == sql.ErrNoRows </span><span class="cov0" title="0">{
+                sm.logger.Warnf("No session found in db")
+                return nil, ErrNoSession
+        }</span>
+
+        // проверка, что сессия не истекла
+        <span class="cov0" title="0">if sess.Expires &lt; time.Now().Unix() </span><span class="cov0" title="0">{
+                err := sm.Destroy(r.Context())
+                if err != nil </span><span class="cov0" title="0">{
+                        sm.logger.Errorf("Error while destroying session: %v", err)
+                        return nil, fmt.Errorf("destroy session error: %v", err)
+                }</span>
+
+                <span class="cov0" title="0">return nil, ErrSessionExpired</span>
+        }
+
+        <span class="cov0" title="0">return sess, nil</span>
+}
+
+func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error <span class="cov0" title="0">{
+        sess, err := SessionFromContext(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Error getting session from context: %v", err)
+                return err
+        }</span>
+
+        <span class="cov0" title="0">result, err := sm.db.ExecContext(
+                ctx,
+                "DELETE FROM sessions WHERE sess_id = ?",
+                sess.SessID,
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Error while DELETE from db: %v", err)
+                return fmt.Errorf("db error: %v", err)
+        }</span>
+
+        // проверка, что запись удалена
+        <span class="cov0" title="0">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Error in RowsAffected(): %v", err)
+                return fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+                sm.logger.Errorf("Subscription was not added")
+                return ErrNotDestroyed
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package session
+
+import (
+        "context"
+        "math/rand"
+        "net/http"
+
+        "github.com/pkg/errors"
+)
+
+var (
+        ErrSessionNotCreated = errors.New("session was not created")
+        ErrNoSession         = errors.New("no session")
+        ErrSessionExpired    = errors.New("session expired")
+        ErrNotDestroyed      = errors.New("session was not destroyed")
+)
+
+type Session struct {
+        SessID  string
+        UserID  uint32
+        Expires int64
+}
+
+type SessionsManager interface {
+        Create(ctx context.Context, userID uint32) (*Session, error)
+        Check(r *http.Request) (*Session, error)
+        Destroy(ctx context.Context) error
+}
+
+func newSession(sessIDLength int, userID uint32, expires int64) Session <span class="cov0" title="0">{
+        return Session{
+                SessID:  RandStringRunes(sessIDLength),
+                UserID:  userID,
+                Expires: expires,
+        }
+}</span>
+
+var (
+        letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+)
+
+func RandStringRunes(n int) string <span class="cov0" title="0">{
+        b := make([]rune, n)
+        for i := range b </span><span class="cov0" title="0">{
+                b[i] = letterRunes[rand.Intn(len(letterRunes))]
+        }</span>
+        <span class="cov0" title="0">return string(b)</span>
+}
+
+type sessKey string
+
+const sessionKey sessKey = "sessionKey"
+
+func ContextWithSession(ctx context.Context, sess *Session) context.Context <span class="cov0" title="0">{
+        return context.WithValue(ctx, sessionKey, sess)
+}</span>
+
+func SessionFromContext(ctx context.Context) (*Session, error) <span class="cov0" title="0">{
+        sess, ok := ctx.Value(sessionKey).(*Session)
+        if !ok || sess == nil </span><span class="cov0" title="0">{
+                return nil, ErrNoSession
+        }</span>
+
+        <span class="cov0" title="0">return sess, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package subscription
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+
+        _ "github.com/go-sql-driver/mysql"
+        "go.uber.org/zap"
+)
+
+type SubscriptionsMySQLRepo struct {
+        db     *sql.DB
+        logger *zap.SugaredLogger
+}
+
+var _ SubscriptionsRepo = &amp;SubscriptionsMySQLRepo{}
+
+func NewSubscriptionsMySQLRepo(db *sql.DB, logger *zap.SugaredLogger) *SubscriptionsMySQLRepo <span class="cov0" title="0">{
+        return &amp;SubscriptionsMySQLRepo{
+                db:     db,
+                logger: logger,
+        }
+}</span>
+
+func (repo *SubscriptionsMySQLRepo) GetAllSubscriptions(ctx context.Context) ([]Subscription, error) <span class="cov0" title="0">{
+        subscriptions := make([]Subscription, 0, 10)
+
+        rows, err := repo.db.QueryContext(
+                ctx,
+                "SELECT subscriber_id, subscription_id, days_alert FROM subscriptions",
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">for rows.Next() </span><span class="cov0" title="0">{
+                var subscr Subscription
+                err = rows.Scan(&amp;subscr.Subscriber, &amp;subscr.Subscription, &amp;subscr.DaysAlert)
+                if err != nil </span><span class="cov0" title="0">{
+                        repo.logger.Errorf("Error while scanning from sql row: %v", err)
+                        return nil, fmt.Errorf("db error: %v", err)
+                }</span>
+
+                <span class="cov0" title="0">subscriptions = append(subscriptions, subscr)</span>
+        }
+
+        <span class="cov0" title="0">err = rows.Close()
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error while closing sql rows: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">return subscriptions, nil</span>
+}
+
+func (repo *SubscriptionsMySQLRepo) GetSubscriptionsByUser(ctx context.Context, userID uint32) ([]Subscription, error) <span class="cov0" title="0">{
+        subscriptions := make([]Subscription, 0, 10)
+
+        rows, err := repo.db.QueryContext(
+                ctx,
+                "SELECT subscription_id, days_alert FROM subscriptions WHERE subscriber_id = ?",
+                userID,
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">for rows.Next() </span><span class="cov0" title="0">{
+                var subscr Subscription
+                err = rows.Scan(&amp;subscr.Subscription, &amp;subscr.DaysAlert)
+                if err != nil </span><span class="cov0" title="0">{
+                        repo.logger.Errorf("Error while scanning from sql row: %v", err)
+                        return nil, fmt.Errorf("db error: %v", err)
+                }</span>
+
+                <span class="cov0" title="0">subscriptions = append(subscriptions, subscr)</span>
+        }
+
+        <span class="cov0" title="0">err = rows.Close()
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error while closing sql rows: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">return subscriptions, nil</span>
+}
+
+func (repo *SubscriptionsMySQLRepo) AddSubscription(ctx context.Context, subscriberID, subscriptionID uint32, daysAlert int) error <span class="cov0" title="0">{
+        result, err := repo.db.ExecContext(
+                ctx,
+                "INSERT INTO subscriptions (`subscriber_id`, `subscription_id`, `days_alert`) VALUES (?, ?, ?)",
+                subscriberID,
+                subscriptionID,
+                daysAlert,
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error while INSERT into db: %v", err)
+                return fmt.Errorf("db error: %v", err)
+        }</span>
+
+        // проверка, что запись добавлена
+        <span class="cov0" title="0">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error in RowsAffected(): %v", err)
+                return fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Subscription was not added")
+                return ErrAddSubscription
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (repo *SubscriptionsMySQLRepo) RemoveSubscription(ctx context.Context, subscriberID, subscriptionID uint32) error <span class="cov0" title="0">{
+        result, err := repo.db.ExecContext(
+                ctx,
+                "DELETE FROM subscriptions WHERE subscriber_id = ? AND subscription_id = ?",
+                subscriberID,
+                subscriptionID,
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error while DELETE from db: %v", err)
+                return fmt.Errorf("db error: %v", err)
+        }</span>
+
+        // проверка, что запись удалена
+        <span class="cov0" title="0">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Errorf("Error in RowsAffected(): %v", err)
+                return fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+                repo.logger.Warnf("Subscription was not removed")
+                return ErrRemoveSubscription
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package user
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "sync"
+
+        _ "github.com/go-sql-driver/mysql"
+        "go.uber.org/zap"
+)
+
+type UsersMySQLRepo struct {
+        mu     *sync.RWMutex
+        db     *sql.DB
+        logger *zap.SugaredLogger
+}
+
+var _ UsersRepo = &amp;UsersMySQLRepo{}
+
+func NewUsersMySQLRepo(db *sql.DB, logger *zap.SugaredLogger) *UsersMySQLRepo <span class="cov8" title="1">{
+        return &amp;UsersMySQLRepo{
+                mu:     &amp;sync.RWMutex{},
+                db:     db,
+                logger: logger,
+        }
+}</span>
+
+func (repo UsersMySQLRepo) Create(ctx context.Context, username, password, email string, year, month, day int) (*User, error) <span class="cov8" title="1">{
+        // проверка, что пользователя с таким юзернэймом нет
+        // сразу залочимся, чтобы никто не влез между запросами и не создал пользователя с таким же именем
+        repo.mu.Lock()
+        var id uint32
+        err := repo.db.QueryRowContext(
+                ctx,
+                "SELECT id from users WHERE username = ?",
+                username,
+        ).Scan(&amp;id)
+        if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov8" title="1">{
+                repo.mu.Unlock()
+                repo.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov8" title="1">if err == nil </span><span class="cov8" title="1">{
+                repo.mu.Unlock()
+                return nil, ErrUserExists
+        }</span>
+
+        <span class="cov8" title="1">result, err := repo.db.ExecContext(
+                ctx,
+                "INSERT INTO users (`username`, `password`, `email`, `year`, `month`, `day`) VALUES (?, ?, ?, ?, ?, ?)",
+                username,
+                password,
+                email,
+                year,
+                month,
+                day,
+        )
+        repo.mu.Unlock()
+
+        if err != nil </span><span class="cov8" title="1">{
+                repo.logger.Errorf("Error while INSERT into db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        // проверка, что запись добавлена
+        <span class="cov8" title="1">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov8" title="1">{
+                repo.logger.Errorf("Error in RowsAffected(): %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov8" title="1">if affected == 0 </span><span class="cov8" title="1">{
+                repo.logger.Errorf("User with username `%d` was not created", username)
+                return nil, ErrUserNotCreated
+        }</span>
+
+        <span class="cov8" title="1">lastID, err := result.LastInsertId()
+        if err != nil </span><span class="cov8" title="1">{
+                repo.logger.Errorf("Error in LastInsertedId(): %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">newUser := &amp;User{
+                ID:       uint32(lastID),
+                Username: username,
+                Email:    email,
+                Year:     year,
+                Month:    month,
+                Day:      day,
+        }
+
+        return newUser, nil</span>
+}
+
+func (repo *UsersMySQLRepo) Login(ctx context.Context, username, password string) (*User, error) <span class="cov8" title="1">{
+        user := &amp;User{}
+        var passwordInDB string
+
+        err := repo.db.QueryRowContext(
+                ctx,
+                "SELECT id, username, password, email, year, month, day FROM users WHERE username = ?",
+                username,
+        ).Scan(
+                &amp;user.ID,
+                &amp;user.Username,
+                &amp;passwordInDB,
+                &amp;user.Email,
+                &amp;user.Year,
+                &amp;user.Month,
+                &amp;user.Day,
+        )
+        if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov8" title="1">{
+                repo.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov8" title="1">if err == sql.ErrNoRows </span><span class="cov8" title="1">{
+                return nil, ErrNoUser
+        }</span>
+
+        <span class="cov8" title="1">if password != passwordInDB </span><span class="cov8" title="1">{
+                return nil, ErrBadPassword
+        }</span>
+
+        <span class="cov8" title="1">return user, nil</span>
+}
+
+func (repo *UsersMySQLRepo) GetAll(ctx context.Context) ([]*User, error) <span class="cov8" title="1">{
+        users := make([]*User, 0, 10)
+
+        rows, err := repo.db.QueryContext(
+                ctx,
+                "SELECT id, username, email, year, month, day FROM users",
+        )
+        if err != nil </span><span class="cov8" title="1">{
+                repo.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                user := &amp;User{}
+                err = rows.Scan(
+                        &amp;user.ID,
+                        &amp;user.Username,
+                        &amp;user.Email,
+                        &amp;user.Year,
+                        &amp;user.Month,
+                        &amp;user.Day,
+                )
+                if err != nil </span><span class="cov8" title="1">{
+                        repo.logger.Errorf("Error while scanning from sql row: %v", err)
+                        return nil, fmt.Errorf("db error: %v", err)
+                }</span>
+
+                <span class="cov8" title="1">users = append(users, user)</span>
+        }
+
+        <span class="cov8" title="1">return users, nil</span>
+}
+
+func (repo *UsersMySQLRepo) GetByID(ctx context.Context, userID uint32) (*User, error) <span class="cov8" title="1">{
+        user := &amp;User{}
+
+        err := repo.db.QueryRowContext(
+                ctx,
+                "SELECT id, username, email, year, month, day FROM users WHERE id = ?",
+                userID,
+        ).Scan(
+                &amp;user.ID,
+                &amp;user.Username,
+                &amp;user.Email,
+                &amp;user.Year,
+                &amp;user.Month,
+                &amp;user.Day,
+        )
+        if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov8" title="1">{
+                repo.logger.Errorf("Error while SELECT from db: %v", err)
+                return nil, fmt.Errorf("db error: %v", err)
+        }</span>
+        <span class="cov8" title="1">if err == sql.ErrNoRows </span><span class="cov8" title="1">{
+                return nil, ErrNoUser
+        }</span>
+
+        <span class="cov8" title="1">return user, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package congrats_service
+
+import (
+        alertmanager "birthday_congrats/internal/pkg/alert_manager"
+        "birthday_congrats/internal/pkg/session"
+        "birthday_congrats/internal/pkg/subscription"
+        "birthday_congrats/internal/pkg/user"
+        "context"
+        "fmt"
+        "slices"
+        "sync"
+        "time"
+
+        "github.com/pkg/errors"
+        "go.uber.org/zap"
+)
+
+const (
+        dateLayout = "2006-01-02"
+)
+
+var (
+        ErrBadDateFormat = errors.New("bad date format")
+)
+
+type CongratulationsService struct {
+        usersRepo         user.UsersRepo
+        subscriptionsRepo subscription.SubscriptionsRepo
+        sm                session.SessionsManager
+        alerts            alertmanager.AlertManager
+        logger            *zap.SugaredLogger
+}
+
+func NewCongratulationsService(
+        usersRepo user.UsersRepo,
+        subscriptionsRepo subscription.SubscriptionsRepo,
+        sm session.SessionsManager,
+        alerts alertmanager.AlertManager,
+        logger *zap.SugaredLogger,
+) *CongratulationsService <span class="cov0" title="0">{
+        return &amp;CongratulationsService{
+                usersRepo:         usersRepo,
+                subscriptionsRepo: subscriptionsRepo,
+                sm:                sm,
+                alerts:            alerts,
+                logger:            logger,
+        }
+}</span>
+
+func (cs *CongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) <span class="cov0" title="0">{
+        birthday, err := time.Parse(dateLayout, birth)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while parsing date: %v", err)
+                return nil, ErrBadDateFormat
+        }</span>
+
+        <span class="cov0" title="0">newUser, err := cs.usersRepo.Create(
+                ctx,
+                username,
+                password,
+                email,
+                birthday.Year(),
+                int(birthday.Month()),
+                birthday.Day(),
+        )
+        if err != nil &amp;&amp; err != user.ErrUserExists </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while creating user: %v", err)
+                return nil, fmt.Errorf("internal error")
+        }</span>
+        <span class="cov0" title="0">if err == user.ErrUserExists </span><span class="cov0" title="0">{
+                cs.logger.Warnf("User already exists")
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">sess, err := cs.sm.Create(ctx, newUser.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while creating session")
+                return nil, fmt.Errorf("internal error")
+        }</span>
+
+        <span class="cov0" title="0">return sess, nil</span>
+}
+
+func (cs *CongratulationsService) Login(ctx context.Context, username, password string) (*session.Session, error) <span class="cov0" title="0">{
+        us, err := cs.usersRepo.Login(ctx, username, password)
+        if err != nil &amp;&amp; err != user.ErrNoUser &amp;&amp; err != user.ErrBadPassword </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while logging in: %v", err)
+                return nil, fmt.Errorf("internal error")
+        }</span>
+        <span class="cov0" title="0">if err == user.ErrNoUser || err == user.ErrBadPassword </span><span class="cov0" title="0">{
+                cs.logger.Warnf("User not exist: %v", err)
+                return nil, user.ErrNoUser // оставляем только один тип ошибки, чтобы мошеннику было сложнее подобрать пароль
+        }</span>
+
+        <span class="cov0" title="0">sess, err := cs.sm.Create(ctx, us.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while creating session")
+                return nil, fmt.Errorf("internal error")
+        }</span>
+
+        <span class="cov0" title="0">return sess, nil</span>
+}
+
+func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32, daysAlert int) error <span class="cov0" title="0">{
+        sess, err := session.SessionFromContext(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error getting session from context: %v", err)
+                return err
+        }</span>
+
+        <span class="cov0" title="0">err = cs.subscriptionsRepo.AddSubscription(ctx, sess.UserID, subscriptionID, daysAlert)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error adding subscription: %v", err)
+                return fmt.Errorf("Internal error")
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionID uint32) error <span class="cov0" title="0">{
+        sess, err := session.SessionFromContext(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error getting session from context: %v", err)
+                return err
+        }</span>
+
+        <span class="cov0" title="0">err = cs.subscriptionsRepo.RemoveSubscription(ctx, sess.UserID, subscriptionID)
+        if err != nil &amp;&amp; err != subscription.ErrRemoveSubscription </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error removing subscription: %v", err)
+                return fmt.Errorf("Internal error")
+        }</span>
+        <span class="cov0" title="0">if err == subscription.ErrRemoveSubscription </span><span class="cov0" title="0">{
+                cs.logger.Warnf("Subscription was not removed")
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user.User, error) <span class="cov0" title="0">{
+        users, err := cs.usersRepo.GetAll(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while getting all users: %v", err)
+                return nil, fmt.Errorf("internal error")
+        }</span>
+
+        <span class="cov0" title="0">sess, err := session.SessionFromContext(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error getting session from context: %v", err)
+                return nil, session.ErrNoSession
+        }</span>
+
+        <span class="cov0" title="0">subscriptions, err := cs.subscriptionsRepo.GetSubscriptionsByUser(ctx, sess.UserID)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error getting subscriptions: %v", err)
+                return nil, fmt.Errorf("internal error")
+        }</span>
+
+        <span class="cov0" title="0">slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int </span><span class="cov0" title="0">{ return int(a.Subscription) - int(b.Subscription) }</span>)
+
+        <span class="cov0" title="0">i := 0
+        for _, u := range users </span><span class="cov0" title="0">{
+                if i &gt;= len(subscriptions) </span><span class="cov0" title="0">{
+                        break</span>
+                }
+
+                <span class="cov0" title="0">if u.ID == subscriptions[i].Subscription </span><span class="cov0" title="0">{
+                        u.Subscription = true
+                        u.DaysAlert = subscriptions[i].DaysAlert
+                        i++
+                }</span>
+        }
+
+        <span class="cov0" title="0">return users, nil</span>
+}
+
+func (cs *CongratulationsService) Logout(ctx context.Context) error <span class="cov0" title="0">{
+        err := cs.sm.Destroy(ctx)
+        if err != nil &amp;&amp; err != session.ErrNotDestroyed &amp;&amp; err != session.ErrNoSession </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while destroying session")
+                return fmt.Errorf("internal error")
+        }</span>
+        <span class="cov0" title="0">if err == session.ErrNoSession || err == session.ErrNotDestroyed </span><span class="cov0" title="0">{
+                cs.logger.Warnf("Session was not destroyed")
+                return session.ErrNotDestroyed
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, wg *sync.WaitGroup) <span class="cov0" title="0">{
+        if timeStart.After(time.Now()) </span><span class="cov0" title="0">{
+                cs.logger.Infof("Alert service will start at %v", timeStart)
+                time.Sleep(time.Until(timeStart))
+        }</span>
+
+        <span class="cov0" title="0">cs.logger.Infof("Starting alert service")
+        go cs.alert(ctx, wg)</span>
+}
+
+func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup) <span class="cov0" title="0">{
+        defer wg.Done()
+
+        cs.logger.Infof("Alert service started")
+
+        wg1 := &amp;sync.WaitGroup{}
+        defer wg1.Wait()
+
+        ticker := time.NewTicker(time.Hour * 24)
+        defer ticker.Stop()
+
+        // первый раз делаем отправку сразу, затем по тикеру
+        messages, recipients, err := cs.makeMessages(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error while making messages: %v", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">cs.logger.Infof("Sending %d different messages today", len(messages))
+
+        for i := range messages </span><span class="cov0" title="0">{
+                wg1.Add(1)
+                go cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i], wg1)
+        }</span>
+
+        <span class="cov0" title="0">for </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        cs.logger.Infof("Alert service was stopped")
+                        return</span>
+                case &lt;-ticker.C:<span class="cov0" title="0">
+                        messages, recipients, err := cs.makeMessages(ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                cs.logger.Errorf("Error while making messages: %v", err)
+                                continue</span>
+                        }
+
+                        <span class="cov0" title="0">cs.logger.Infof("Sending %d different messages today", len(messages))
+
+                        for i := range messages </span><span class="cov0" title="0">{
+                                wg1.Add(1)
+                                go cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i], wg1)
+                        }</span>
+                }
+        }
+}
+
+func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [][]string, error) <span class="cov0" title="0">{
+        subscriptions, err := cs.subscriptionsRepo.GetAllSubscriptions(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                cs.logger.Errorf("Error getting all subscriptions: %v", err)
+                return nil, nil, fmt.Errorf("error getting subscriptions from repo")
+        }</span>
+
+        <span class="cov0" title="0">if len(subscriptions) == 0 </span><span class="cov0" title="0">{
+                return nil, nil, nil
+        }</span>
+
+        <span class="cov0" title="0">slices.SortFunc(subscriptions, func(a, b subscription.Subscription) int </span><span class="cov0" title="0">{ return int(a.Subscription) - int(b.Subscription) }</span>)
+
+        <span class="cov0" title="0">messages := make([]string, 0)
+        recipients := make([][]string, 0)
+
+        var subID uint32
+        var daysBefore int
+        to := make([]string, 0)
+
+        for i, sub := range subscriptions </span><span class="cov0" title="0">{
+                if sub.Subscription != subID || i == 0 </span><span class="cov0" title="0">{
+                        subID = sub.Subscription
+                        us, err := cs.usersRepo.GetByID(ctx, subID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                cs.logger.Errorf("Error getting user by id: %v", err)
+                                return nil, nil, fmt.Errorf("repo error: %v", err)
+                        }</span>
+
+                        <span class="cov0" title="0">birthday := time.Date(
+                                time.Now().Year(),
+                                time.Month(us.Month),
+                                us.Day,
+                                0, 0, 0, 0,
+                                time.UTC,
+                        )
+                        if birthday.Before(time.Now()) </span><span class="cov0" title="0">{
+                                birthday = birthday.AddDate(1, 0, 0)
+                        }</span>
+
+                        <span class="cov0" title="0">if len(to) &gt; 0 </span><span class="cov0" title="0">{
+                                recipients = append(recipients, to)
+                        }</span> else<span class="cov0" title="0"> if len(messages) &gt; 0 </span><span class="cov0" title="0">{
+                                messages = messages[:len(messages)-1]
+                        }</span>
+
+                        <span class="cov0" title="0">daysBefore = int(time.Until(birthday).Hours())/24 + 1
+                        messages = append(messages, fmt.Sprintf("%s празднует свой день рождения через %d дней!", us.Username, daysBefore))
+
+                        to = make([]string, 0)</span>
+                }
+
+                <span class="cov0" title="0">if daysBefore == sub.DaysAlert </span><span class="cov0" title="0">{
+                        subscriber, err := cs.usersRepo.GetByID(ctx, sub.Subscriber)
+                        if err != nil </span><span class="cov0" title="0">{
+                                cs.logger.Errorf("Error getting user by id: %v", err)
+                                return nil, nil, fmt.Errorf("repo error: %v", err)
+                        }</span>
+
+                        <span class="cov0" title="0">to = append(to, subscriber.Email)</span>
+                }
+        }
+
+        <span class="cov0" title="0">if len(to) &gt; 0 </span><span class="cov0" title="0">{
+                recipients = append(recipients, to)
+        }</span> else<span class="cov0" title="0"> if len(messages) &gt; 0 </span><span class="cov0" title="0">{
+                messages = messages[:len(messages)-1]
+        }</span>
+
+        <span class="cov0" title="0">return messages, recipients, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
