@@ -299,7 +299,7 @@ func TestSubscribe(t *testing.T) {
 
 	sessExpected := &session.Session{
 		SessID:  "some_sess_id",
-		UserID:  uint32(subscriberID),
+		UserID:  subscriberID,
 		Expires: time.Now().Unix() + 60,
 	}
 
@@ -392,7 +392,7 @@ func TestUnsubscribe(t *testing.T) {
 
 	sessExpected := &session.Session{
 		SessID:  "some_sess_id",
-		UserID:  uint32(subscriberID),
+		UserID:  subscriberID,
 		Expires: time.Now().Unix() + 60,
 	}
 
@@ -717,7 +717,7 @@ func TestMakeMessages(t *testing.T) {
 		},
 	}
 
-	//нормальная работа
+	// нормальная работа
 	subscriptionsRepo.EXPECT().GetAllSubscriptions(context.Background()).Return(subsSent, nil)
 
 	usersRepo.EXPECT().GetByID(context.Background(), uint32(0)).Return(usersSent[0], nil)
