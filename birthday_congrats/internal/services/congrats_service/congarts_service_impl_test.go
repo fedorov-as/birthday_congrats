@@ -25,7 +25,7 @@ func TestRegister(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -177,7 +177,7 @@ func TestLogin(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -284,7 +284,7 @@ func TestSubscribe(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -378,7 +378,7 @@ func TestUnsubscribe(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -464,7 +464,7 @@ func TestLogout(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -518,7 +518,7 @@ func TestGetSubscriptionsByUser(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -629,7 +629,7 @@ func TestMakeMessages(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,
@@ -779,7 +779,7 @@ func TestAlert(t *testing.T) {
 	sessManager := session.NewMockSessionsManager(ctrl)
 	alertManager := alertmanager.NewMockAlertManager(ctrl)
 
-	testService := NewCongratulationsService(
+	testService := NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sessManager,

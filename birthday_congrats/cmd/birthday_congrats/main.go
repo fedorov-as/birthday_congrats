@@ -95,7 +95,7 @@ func main() {
 	)
 
 	// сам сервис
-	service := service.NewCongratulationsService(
+	service := service.NewCongratulationsServiceImpl(
 		usersRepo,
 		subscriptionsRepo,
 		sm,
@@ -148,15 +148,11 @@ func main() {
 	logger.Infow("Starting server",
 		"type", "START",
 		"addr", port)
-	go func() {
-		err = http.ListenAndServe(port, mux)
-		if err != nil {
-			logger.Errorw("Error while starting server",
-				"type", "ERROR",
-				"addr", port,
-				"error", err)
-		}
-	}()
-
-	fmt.Scanln()
+	err = http.ListenAndServe(port, mux)
+	if err != nil {
+		logger.Errorw("Error while starting server",
+			"type", "ERROR",
+			"addr", port,
+			"error", err)
+	}
 }

@@ -15,14 +15,14 @@ import (
 
 type ServiceHandler struct {
 	tmpl    *template.Template
-	service *service.CongratulationsService
+	service service.CongratulationsService
 	sm      session.SessionsManager
 	logger  *zap.SugaredLogger
 }
 
 func NewServiceHandler(
 	tmpl *template.Template,
-	service *service.CongratulationsService,
+	service service.CongratulationsService,
 	sm session.SessionsManager,
 	logger *zap.SugaredLogger,
 ) *ServiceHandler {
