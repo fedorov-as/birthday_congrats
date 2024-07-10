@@ -14,6 +14,6 @@ type CongratulationsService interface {
 	Subscribe(ctx context.Context, subscriptionID uint32, daysAlert int) error
 	Unsubscribe(ctx context.Context, subscriptionID uint32) error
 	Logout(ctx context.Context) error
-	GetSubscriptionsByUser(ctx context.Context) ([]*user.User, error)
+	GetSubscriptionsByUser(ctx context.Context) ([]*user.User, error) // возвращает список всех пользователей с информацией о подписке на каждого
 	StartAlert(ctx context.Context, timeStart time.Time, period time.Duration, wg *sync.WaitGroup)
 }

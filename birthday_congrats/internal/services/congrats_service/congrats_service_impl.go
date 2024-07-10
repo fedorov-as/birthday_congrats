@@ -280,7 +280,7 @@ func (cs *CongratulationsServiceImpl) makeMessages(ctx context.Context) ([]strin
 				time.Month(us.Month),
 				us.Day,
 				0, 0, 0, 0,
-				time.UTC,
+				time.Local,
 			)
 			if birthday.Before(time.Now()) {
 				birthday = birthday.AddDate(1, 0, 0)

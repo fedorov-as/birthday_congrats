@@ -61,7 +61,7 @@
 				
 				<option value="file2">birthday_congrats/internal/pkg/alert_manager/email_alert_manager.go (0.0%)</option>
 				
-				<option value="file3">birthday_congrats/internal/pkg/handlers/service.go (0.0%)</option>
+				<option value="file3">birthday_congrats/internal/pkg/handlers/service.go (100.0%)</option>
 				
 				<option value="file4">birthday_congrats/internal/pkg/middlware/auth.go (0.0%)</option>
 				
@@ -83,7 +83,9 @@
 				
 				<option value="file13">birthday_congrats/internal/pkg/user/repo_mock.go (0.0%)</option>
 				
-				<option value="file14">birthday_congrats/internal/services/congrats_service/congrats_service.go (96.1%)</option>
+				<option value="file14">birthday_congrats/internal/services/congrats_service/congrats_service_impl.go (96.1%)</option>
+				
+				<option value="file15">birthday_congrats/internal/services/congrats_service/congrats_service_mock.go (0.0%)</option>
 				
 				</select>
 			</div>
@@ -194,7 +196,7 @@ func main() <span class="cov0" title="0">{
         )
 
         // сам сервис
-        service := service.NewCongratulationsService(
+        service := service.NewCongratulationsServiceImpl(
                 usersRepo,
                 subscriptionsRepo,
                 sm,
@@ -226,17 +228,17 @@ func main() <span class="cov0" title="0">{
         router.HandleFunc("/", serviceHandler.Index).Methods("GET")
         router.HandleFunc("/register", serviceHandler.Register).Methods("POST")
         router.HandleFunc("/login", serviceHandler.Login).Methods("POST")
-        router.HandleFunc("/error", serviceHandler.Error).Methods("GET")
+        router.HandleFunc("/error", serviceHandler.ErrorPage).Methods("GET")
 
         // хендлеры, требующие авторизации
         router.Handle("/users",
-                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Users)))
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Users))).Methods("GET")
         router.Handle("/subscribe/{user_id}",
-                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Subscribe)))
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Subscribe))).Methods("POST")
         router.Handle("/unsubscribe/{user_id}",
-                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Unsubscribe)))
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Unsubscribe))).Methods("POST")
         router.Handle("/logout",
-                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Logout)))
+                middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Logout))).Methods("GET")
 
         // добавляем миддлверы
         mux := middlware.Logger(logger, router)
@@ -247,17 +249,13 @@ func main() <span class="cov0" title="0">{
         logger.Infow("Starting server",
                 "type", "START",
                 "addr", port)
-        go func() </span><span class="cov0" title="0">{
-                err = http.ListenAndServe(port, mux)
-                if err != nil </span><span class="cov0" title="0">{
-                        logger.Errorw("Error while starting server",
-                                "type", "ERROR",
-                                "addr", port,
-                                "error", err)
-                }</span>
-        }()
-
-        <span class="cov0" title="0">fmt.Scanln()</span>
+        err = http.ListenAndServe(port, mux)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Errorw("Error while starting server",
+                        "type", "ERROR",
+                        "addr", port,
+                        "error", err)
+        }</span>
 }
 </pre>
 		
@@ -385,17 +383,17 @@ import (
 
 type ServiceHandler struct {
         tmpl    *template.Template
-        service *service.CongratulationsService
+        service service.CongratulationsService
         sm      session.SessionsManager
         logger  *zap.SugaredLogger
 }
 
 func NewServiceHandler(
         tmpl *template.Template,
-        service *service.CongratulationsService,
+        service service.CongratulationsService,
         sm session.SessionsManager,
         logger *zap.SugaredLogger,
-) *ServiceHandler <span class="cov0" title="0">{
+) *ServiceHandler <span class="cov8" title="1">{
         return &amp;ServiceHandler{
                 tmpl:    tmpl,
                 service: service,
@@ -404,36 +402,41 @@ func NewServiceHandler(
         }
 }</span>
 
-func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string) <span class="cov0" title="0">{
+func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string, statusCode int) <span class="cov8" title="1">{
+        w.WriteHeader(statusCode)
+
         err := h.tmpl.ExecuteTemplate(w, "error.html", struct {
                 Message string
         }{
                 Message: message,
         })
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
+                w.WriteHeader(http.StatusInternalServerError)
                 h.logger.Errorf("Template error: %v", err)
         }</span>
 }
 
-func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         sess, err := h.sm.Check(r)
-        if err == nil </span><span class="cov0" title="0">{
+        if err == nil </span><span class="cov8" title="1">{
                 ctx := session.ContextWithSession(r.Context(), sess)
                 http.Redirect(w, r.WithContext(ctx), "/users", http.StatusFound)
                 return
         }</span>
 
-        <span class="cov0" title="0">err = h.tmpl.ExecuteTemplate(w, "login.html", nil)
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">w.WriteHeader(http.StatusOK)
+        err = h.tmpl.ExecuteTemplate(w, "login.html", nil)
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("template error: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
         }</span>
 }
 
-func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
-        h.execErrorTemplate(w, "Произошла ошибка")
+func (h *ServiceHandler) ErrorPage(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        h.execErrorTemplate(w, "Произошла ошибка", http.StatusInternalServerError)
 }</span>
 
-func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         sess, err := h.service.Register(
                 r.Context(),
                 r.FormValue("username"),
@@ -441,16 +444,17 @@ func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) <span 
                 r.FormValue("email"),
                 r.FormValue("birth"),
         )
-        if err != nil &amp;&amp; err != user.ErrUserExists </span><span class="cov0" title="0">{
+        if err != nil &amp;&amp; err != user.ErrUserExists </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error while registration: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
+                return
         }</span>
-        <span class="cov0" title="0">if err == user.ErrUserExists </span><span class="cov0" title="0">{
-                h.execErrorTemplate(w, "Пользоваель с таким именем уже существует")
-
+        <span class="cov8" title="1">if err == user.ErrUserExists </span><span class="cov8" title="1">{
+                h.execErrorTemplate(w, "Пользоваель с таким именем уже существует", http.StatusForbidden)
                 return
         }</span>
 
-        <span class="cov0" title="0">http.SetCookie(w, &amp;http.Cookie{
+        <span class="cov8" title="1">http.SetCookie(w, &amp;http.Cookie{
                 Name:    "session_id",
                 Value:   sess.SessID,
                 Expires: time.Unix(sess.Expires, 0),
@@ -459,22 +463,23 @@ func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) <span 
         http.Redirect(w, r, "/users", http.StatusFound)</span>
 }
 
-func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         sess, err := h.service.Login(
                 r.Context(),
                 r.FormValue("username"),
                 r.FormValue("password"),
         )
-        if err != nil &amp;&amp; err != user.ErrNoUser </span><span class="cov0" title="0">{
+        if err != nil &amp;&amp; err != user.ErrNoUser </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error while registration: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
+                return
         }</span>
-        <span class="cov0" title="0">if err == user.ErrNoUser </span><span class="cov0" title="0">{
-                h.execErrorTemplate(w, "Неверный логин или пароль")
-
+        <span class="cov8" title="1">if err == user.ErrNoUser </span><span class="cov8" title="1">{
+                h.execErrorTemplate(w, "Неверный логин или пароль", http.StatusForbidden)
                 return
         }</span>
 
-        <span class="cov0" title="0">http.SetCookie(w, &amp;http.Cookie{
+        <span class="cov8" title="1">http.SetCookie(w, &amp;http.Cookie{
                 Name:    "session_id",
                 Value:   sess.SessID,
                 Expires: time.Unix(sess.Expires, 0),
@@ -483,75 +488,88 @@ func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) <span cla
         http.Redirect(w, r, "/users", http.StatusFound)</span>
 }
 
-func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         users, err := h.service.GetSubscriptionsByUser(r.Context())
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error getting all users: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
+                return
         }</span>
 
-        <span class="cov0" title="0">err = h.tmpl.ExecuteTemplate(w, "users.html", struct {
+        <span class="cov8" title="1">w.WriteHeader(http.StatusOK)
+        err = h.tmpl.ExecuteTemplate(w, "users.html", struct {
                 Users []*user.User
         }{
                 Users: users,
         })
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("Template error: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
         }</span>
 }
 
-func (h *ServiceHandler) Subscribe(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Subscribe(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error converting string to int: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
                 return
         }</span>
 
-        <span class="cov0" title="0">daysAlert, err := strconv.Atoi(r.FormValue("days_alert"))
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">daysAlert, err := strconv.Atoi(r.FormValue("days_alert"))
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error converting string to int: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
                 return
         }</span>
 
-        <span class="cov0" title="0">err = h.service.Subscribe(r.Context(), uint32(subscriptionID), daysAlert)
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">err = h.service.Subscribe(r.Context(), uint32(subscriptionID), daysAlert)
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error while subscribing: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
                 return
         }</span>
 
-        <span class="cov0" title="0">http.Redirect(w, r, "/users", http.StatusFound)</span>
+        <span class="cov8" title="1">http.Redirect(w, r, "/users", http.StatusFound)</span>
 }
 
-func (h *ServiceHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error converting string to int: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
                 return
         }</span>
 
-        <span class="cov0" title="0">err = h.service.Unsubscribe(r.Context(), uint32(subscriptionID))
-        if err != nil </span><span class="cov0" title="0">{
-                h.logger.Errorf("Error while subscribing: %v", err)
+        <span class="cov8" title="1">err = h.service.Unsubscribe(r.Context(), uint32(subscriptionID))
+        if err != nil </span><span class="cov8" title="1">{
+                h.logger.Errorf("Error while unsubscribing: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
                 return
         }</span>
 
-        <span class="cov0" title="0">http.Redirect(w, r, "/users", http.StatusFound)</span>
+        <span class="cov8" title="1">http.Redirect(w, r, "/users", http.StatusFound)</span>
 }
 
-func (h *ServiceHandler) Logout(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func (h *ServiceHandler) Logout(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         err := h.service.Logout(r.Context())
-        if err != nil &amp;&amp; err != session.ErrNotDestroyed </span><span class="cov0" title="0">{
+        if err != nil &amp;&amp; err != session.ErrNotDestroyed </span><span class="cov8" title="1">{
                 h.logger.Errorf("Error while logout: %v", err)
+                http.Redirect(w, r, "/error", http.StatusFound)
+                return
         }</span>
-        <span class="cov0" title="0">if err == session.ErrNotDestroyed </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err == session.ErrNotDestroyed </span><span class="cov8" title="1">{
                 h.logger.Warnf("Session was not destroyed")
         }</span>
 
-        <span class="cov0" title="0">cookie, err := r.Cookie("session_id")
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">cookie, err := r.Cookie("session_id")
+        if err != nil </span><span class="cov8" title="1">{
                 h.logger.Warnf("No cookie found")
+                http.Redirect(w, r, "/error", http.StatusFound)
+                return
         }</span>
 
-        <span class="cov0" title="0">cookie.Expires = time.Now().AddDate(0, 0, -1)
+        <span class="cov8" title="1">cookie.Expires = time.Now().AddDate(0, 0, -1)
         http.SetCookie(w, cookie)
 
         http.Redirect(w, r, "/", http.StatusFound)</span>
@@ -1449,7 +1467,7 @@ var (
         ErrBadDateFormat = errors.New("bad date format")
 )
 
-type CongratulationsService struct {
+type CongratulationsServiceImpl struct {
         usersRepo         user.UsersRepo
         subscriptionsRepo subscription.SubscriptionsRepo
         sm                session.SessionsManager
@@ -1457,14 +1475,16 @@ type CongratulationsService struct {
         logger            *zap.SugaredLogger
 }
 
-func NewCongratulationsService(
+var _ CongratulationsService = &amp;CongratulationsServiceImpl{}
+
+func NewCongratulationsServiceImpl(
         usersRepo user.UsersRepo,
         subscriptionsRepo subscription.SubscriptionsRepo,
         sm session.SessionsManager,
         alerts alertmanager.AlertManager,
         logger *zap.SugaredLogger,
-) *CongratulationsService <span class="cov8" title="1">{
-        return &amp;CongratulationsService{
+) *CongratulationsServiceImpl <span class="cov8" title="1">{
+        return &amp;CongratulationsServiceImpl{
                 usersRepo:         usersRepo,
                 subscriptionsRepo: subscriptionsRepo,
                 sm:                sm,
@@ -1473,7 +1493,7 @@ func NewCongratulationsService(
         }
 }</span>
 
-func (cs *CongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) <span class="cov8" title="1">{
         birthday, err := time.Parse(dateLayout, birth)
         if err != nil </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error while parsing date: %v", err)
@@ -1507,7 +1527,7 @@ func (cs *CongratulationsService) Register(ctx context.Context, username, passwo
         <span class="cov8" title="1">return sess, nil</span>
 }
 
-func (cs *CongratulationsService) Login(ctx context.Context, username, password string) (*session.Session, error) <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) Login(ctx context.Context, username, password string) (*session.Session, error) <span class="cov8" title="1">{
         us, err := cs.usersRepo.Login(ctx, username, password)
         if err != nil &amp;&amp; err != user.ErrNoUser &amp;&amp; err != user.ErrBadPassword </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error while logging in: %v", err)
@@ -1527,7 +1547,7 @@ func (cs *CongratulationsService) Login(ctx context.Context, username, password 
         <span class="cov8" title="1">return sess, nil</span>
 }
 
-func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32, daysAlert int) error <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) Subscribe(ctx context.Context, subscriptionID uint32, daysAlert int) error <span class="cov8" title="1">{
         sess, err := session.SessionFromContext(ctx)
         if err != nil </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error getting session from context: %v", err)
@@ -1547,7 +1567,7 @@ func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID 
         <span class="cov8" title="1">return nil</span>
 }
 
-func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionID uint32) error <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) Unsubscribe(ctx context.Context, subscriptionID uint32) error <span class="cov8" title="1">{
         sess, err := session.SessionFromContext(ctx)
         if err != nil </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error getting session from context: %v", err)
@@ -1567,7 +1587,7 @@ func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionI
         <span class="cov8" title="1">return nil</span>
 }
 
-func (cs *CongratulationsService) Logout(ctx context.Context) error <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) Logout(ctx context.Context) error <span class="cov8" title="1">{
         err := cs.sm.Destroy(ctx)
         if err != nil &amp;&amp; err != session.ErrNotDestroyed &amp;&amp; err != session.ErrNoSession </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error while destroying session")
@@ -1581,7 +1601,7 @@ func (cs *CongratulationsService) Logout(ctx context.Context) error <span class=
         <span class="cov8" title="1">return nil</span>
 }
 
-func (cs *CongratulationsService) GetSubscriptionsByUser(ctx context.Context) ([]*user.User, error) <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) GetSubscriptionsByUser(ctx context.Context) ([]*user.User, error) <span class="cov8" title="1">{
         sess, err := session.SessionFromContext(ctx)
         if err != nil </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error getting session from context: %v", err)
@@ -1618,7 +1638,7 @@ func (cs *CongratulationsService) GetSubscriptionsByUser(ctx context.Context) ([
         <span class="cov8" title="1">return users, nil</span>
 }
 
-func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, period time.Duration, wg *sync.WaitGroup) <span class="cov0" title="0">{
+func (cs *CongratulationsServiceImpl) StartAlert(ctx context.Context, timeStart time.Time, period time.Duration, wg *sync.WaitGroup) <span class="cov0" title="0">{
         if timeStart.After(time.Now()) </span><span class="cov0" title="0">{
                 cs.logger.Infof("Alert service will start at %v", timeStart)
                 time.Sleep(time.Until(timeStart))
@@ -1628,7 +1648,7 @@ func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time
         go cs.alert(ctx, period, wg)</span>
 }
 
-func (cs *CongratulationsService) alert(ctx context.Context, period time.Duration, wg *sync.WaitGroup) <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) alert(ctx context.Context, period time.Duration, wg *sync.WaitGroup) <span class="cov8" title="1">{
         defer wg.Done()
 
         cs.logger.Infof("Alert service started")
@@ -1670,7 +1690,7 @@ func (cs *CongratulationsService) alert(ctx context.Context, period time.Duratio
         }
 }
 
-func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [][]string, error) <span class="cov8" title="1">{
+func (cs *CongratulationsServiceImpl) makeMessages(ctx context.Context) ([]string, [][]string, error) <span class="cov8" title="1">{
         subscriptions, err := cs.subscriptionsRepo.GetAllSubscriptions(ctx)
         if err != nil </span><span class="cov8" title="1">{
                 cs.logger.Errorf("Error getting all subscriptions: %v", err)
@@ -1704,7 +1724,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
                                 time.Month(us.Month),
                                 us.Day,
                                 0, 0, 0, 0,
-                                time.UTC,
+                                time.Local,
                         )
                         if birthday.Before(time.Now()) </span><span class="cov8" title="1">{
                                 birthday = birthday.AddDate(1, 0, 0)
@@ -1741,6 +1761,146 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 
         <span class="cov8" title="1">return messages, recipients, nil</span>
 }
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: congrats_service.go
+
+// Package congrats_service is a generated GoMock package.
+package congrats_service
+
+import (
+        session "birthday_congrats/internal/pkg/session"
+        user "birthday_congrats/internal/pkg/user"
+        context "context"
+        reflect "reflect"
+        sync "sync"
+        time "time"
+
+        gomock "github.com/golang/mock/gomock"
+)
+
+// MockCongratulationsService is a mock of CongratulationsService interface.
+type MockCongratulationsService struct {
+        ctrl     *gomock.Controller
+        recorder *MockCongratulationsServiceMockRecorder
+}
+
+// MockCongratulationsServiceMockRecorder is the mock recorder for MockCongratulationsService.
+type MockCongratulationsServiceMockRecorder struct {
+        mock *MockCongratulationsService
+}
+
+// NewMockCongratulationsService creates a new mock instance.
+func NewMockCongratulationsService(ctrl *gomock.Controller) *MockCongratulationsService <span class="cov0" title="0">{
+        mock := &amp;MockCongratulationsService{ctrl: ctrl}
+        mock.recorder = &amp;MockCongratulationsServiceMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCongratulationsService) EXPECT() *MockCongratulationsServiceMockRecorder <span class="cov0" title="0">{
+        return m.recorder
+}</span>
+
+// GetSubscriptionsByUser mocks base method.
+func (m *MockCongratulationsService) GetSubscriptionsByUser(ctx context.Context) ([]*user.User, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetSubscriptionsByUser", ctx)
+        ret0, _ := ret[0].([]*user.User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetSubscriptionsByUser indicates an expected call of GetSubscriptionsByUser.
+func (mr *MockCongratulationsServiceMockRecorder) GetSubscriptionsByUser(ctx interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionsByUser", reflect.TypeOf((*MockCongratulationsService)(nil).GetSubscriptionsByUser), ctx)
+}</span>
+
+// Login mocks base method.
+func (m *MockCongratulationsService) Login(ctx context.Context, username, password string) (*session.Session, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Login", ctx, username, password)
+        ret0, _ := ret[0].(*session.Session)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// Login indicates an expected call of Login.
+func (mr *MockCongratulationsServiceMockRecorder) Login(ctx, username, password interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Login", reflect.TypeOf((*MockCongratulationsService)(nil).Login), ctx, username, password)
+}</span>
+
+// Logout mocks base method.
+func (m *MockCongratulationsService) Logout(ctx context.Context) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Logout", ctx)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Logout indicates an expected call of Logout.
+func (mr *MockCongratulationsServiceMockRecorder) Logout(ctx interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logout", reflect.TypeOf((*MockCongratulationsService)(nil).Logout), ctx)
+}</span>
+
+// Register mocks base method.
+func (m *MockCongratulationsService) Register(ctx context.Context, username, password, email, birth string) (*session.Session, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Register", ctx, username, password, email, birth)
+        ret0, _ := ret[0].(*session.Session)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// Register indicates an expected call of Register.
+func (mr *MockCongratulationsServiceMockRecorder) Register(ctx, username, password, email, birth interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockCongratulationsService)(nil).Register), ctx, username, password, email, birth)
+}</span>
+
+// StartAlert mocks base method.
+func (m *MockCongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, period time.Duration, wg *sync.WaitGroup) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        m.ctrl.Call(m, "StartAlert", ctx, timeStart, period, wg)
+}</span>
+
+// StartAlert indicates an expected call of StartAlert.
+func (mr *MockCongratulationsServiceMockRecorder) StartAlert(ctx, timeStart, period, wg interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartAlert", reflect.TypeOf((*MockCongratulationsService)(nil).StartAlert), ctx, timeStart, period, wg)
+}</span>
+
+// Subscribe mocks base method.
+func (m *MockCongratulationsService) Subscribe(ctx context.Context, subscriptionID uint32, daysAlert int) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Subscribe", ctx, subscriptionID, daysAlert)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockCongratulationsServiceMockRecorder) Subscribe(ctx, subscriptionID, daysAlert interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockCongratulationsService)(nil).Subscribe), ctx, subscriptionID, daysAlert)
+}</span>
+
+// Unsubscribe mocks base method.
+func (m *MockCongratulationsService) Unsubscribe(ctx context.Context, subscriptionID uint32) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Unsubscribe", ctx, subscriptionID)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Unsubscribe indicates an expected call of Unsubscribe.
+func (mr *MockCongratulationsServiceMockRecorder) Unsubscribe(ctx, subscriptionID interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unsubscribe", reflect.TypeOf((*MockCongratulationsService)(nil).Unsubscribe), ctx, subscriptionID)
+}</span>
 </pre>
 		
 		</div>

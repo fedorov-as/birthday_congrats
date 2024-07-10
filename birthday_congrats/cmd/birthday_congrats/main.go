@@ -127,17 +127,17 @@ func main() {
 	router.HandleFunc("/", serviceHandler.Index).Methods("GET")
 	router.HandleFunc("/register", serviceHandler.Register).Methods("POST")
 	router.HandleFunc("/login", serviceHandler.Login).Methods("POST")
-	router.HandleFunc("/error", serviceHandler.Error).Methods("GET")
+	router.HandleFunc("/error", serviceHandler.ErrorPage).Methods("GET")
 
 	// хендлеры, требующие авторизации
 	router.Handle("/users",
-		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Users)))
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Users))).Methods("GET")
 	router.Handle("/subscribe/{user_id}",
-		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Subscribe)))
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Subscribe))).Methods("POST")
 	router.Handle("/unsubscribe/{user_id}",
-		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Unsubscribe)))
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Unsubscribe))).Methods("POST")
 	router.Handle("/logout",
-		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Logout)))
+		middlware.Auth(sm, logger, http.HandlerFunc(serviceHandler.Logout))).Methods("GET")
 
 	// добавляем миддлверы
 	mux := middlware.Logger(logger, router)

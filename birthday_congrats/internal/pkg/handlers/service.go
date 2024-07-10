@@ -34,13 +34,16 @@ func NewServiceHandler(
 	}
 }
 
-func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string) {
+func (h *ServiceHandler) execErrorTemplate(w http.ResponseWriter, message string, statusCode int) {
+	w.WriteHeader(statusCode)
+
 	err := h.tmpl.ExecuteTemplate(w, "error.html", struct {
 		Message string
 	}{
 		Message: message,
 	})
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		h.logger.Errorf("Template error: %v", err)
 	}
 }
@@ -53,14 +56,16 @@ func (h *ServiceHandler) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	err = h.tmpl.ExecuteTemplate(w, "login.html", nil)
 	if err != nil {
 		h.logger.Errorf("template error: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 	}
 }
 
-func (h *ServiceHandler) Error(w http.ResponseWriter, r *http.Request) {
-	h.execErrorTemplate(w, "Произошла ошибка")
+func (h *ServiceHandler) ErrorPage(w http.ResponseWriter, r *http.Request) {
+	h.execErrorTemplate(w, "Произошла ошибка", http.StatusInternalServerError)
 }
 
 func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -73,10 +78,11 @@ func (h *ServiceHandler) Register(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil && err != user.ErrUserExists {
 		h.logger.Errorf("Error while registration: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
 	}
 	if err == user.ErrUserExists {
-		h.execErrorTemplate(w, "Пользоваель с таким именем уже существует")
-
+		h.execErrorTemplate(w, "Пользоваель с таким именем уже существует", http.StatusForbidden)
 		return
 	}
 
@@ -97,10 +103,11 @@ func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil && err != user.ErrNoUser {
 		h.logger.Errorf("Error while registration: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
 	}
 	if err == user.ErrNoUser {
-		h.execErrorTemplate(w, "Неверный логин или пароль")
-
+		h.execErrorTemplate(w, "Неверный логин или пароль", http.StatusForbidden)
 		return
 	}
 
@@ -117,8 +124,11 @@ func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) {
 	users, err := h.service.GetSubscriptionsByUser(r.Context())
 	if err != nil {
 		h.logger.Errorf("Error getting all users: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	err = h.tmpl.ExecuteTemplate(w, "users.html", struct {
 		Users []*user.User
 	}{
@@ -126,6 +136,7 @@ func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		h.logger.Errorf("Template error: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 	}
 }
 
@@ -133,18 +144,21 @@ func (h *ServiceHandler) Subscribe(w http.ResponseWriter, r *http.Request) {
 	subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
 	if err != nil {
 		h.logger.Errorf("Error converting string to int: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
 
 	daysAlert, err := strconv.Atoi(r.FormValue("days_alert"))
 	if err != nil {
 		h.logger.Errorf("Error converting string to int: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
 
 	err = h.service.Subscribe(r.Context(), uint32(subscriptionID), daysAlert)
 	if err != nil {
 		h.logger.Errorf("Error while subscribing: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
 
@@ -155,12 +169,14 @@ func (h *ServiceHandler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 	subscriptionID, err := strconv.Atoi(mux.Vars(r)["user_id"])
 	if err != nil {
 		h.logger.Errorf("Error converting string to int: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
 
 	err = h.service.Unsubscribe(r.Context(), uint32(subscriptionID))
 	if err != nil {
-		h.logger.Errorf("Error while subscribing: %v", err)
+		h.logger.Errorf("Error while unsubscribing: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
 		return
 	}
 
@@ -171,6 +187,8 @@ func (h *ServiceHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	err := h.service.Logout(r.Context())
 	if err != nil && err != session.ErrNotDestroyed {
 		h.logger.Errorf("Error while logout: %v", err)
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
 	}
 	if err == session.ErrNotDestroyed {
 		h.logger.Warnf("Session was not destroyed")
@@ -179,6 +197,8 @@ func (h *ServiceHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		h.logger.Warnf("No cookie found")
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
 	}
 
 	cookie.Expires = time.Now().AddDate(0, 0, -1)
