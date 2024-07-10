@@ -2,7 +2,6 @@ package alertmanager
 
 import (
 	"strings"
-	"sync"
 
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
@@ -38,9 +37,7 @@ func NewEmailAlertManager(
 	}
 }
 
-func (am *EmailAlertManager) Send(to []string, subject, message string, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (am *EmailAlertManager) Send(to []string, subject, message string) {
 	// Сообщение.
 	msg := strings.NewReader(
 		"From: " + am.from + "\r\n" +

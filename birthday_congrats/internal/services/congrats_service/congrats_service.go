@@ -109,9 +109,13 @@ func (cs *CongratulationsService) Subscribe(ctx context.Context, subscriptionID 
 	}
 
 	err = cs.subscriptionsRepo.AddSubscription(ctx, sess.UserID, subscriptionID, daysAlert)
-	if err != nil {
+	if err != nil && err != subscription.ErrAddSubscription {
 		cs.logger.Errorf("Error adding subscription: %v", err)
 		return fmt.Errorf("Internal error")
+	}
+	if err == subscription.ErrAddSubscription {
+		cs.logger.Warnf("Subscription was not added")
+		return err
 	}
 
 	return nil
@@ -131,22 +135,37 @@ func (cs *CongratulationsService) Unsubscribe(ctx context.Context, subscriptionI
 	}
 	if err == subscription.ErrRemoveSubscription {
 		cs.logger.Warnf("Subscription was not removed")
+		return err
 	}
 
 	return nil
 }
 
-func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user.User, error) {
-	users, err := cs.usersRepo.GetAll(ctx)
-	if err != nil {
-		cs.logger.Errorf("Error while getting all users: %v", err)
-		return nil, fmt.Errorf("internal error")
+func (cs *CongratulationsService) Logout(ctx context.Context) error {
+	err := cs.sm.Destroy(ctx)
+	if err != nil && err != session.ErrNotDestroyed && err != session.ErrNoSession {
+		cs.logger.Errorf("Error while destroying session")
+		return fmt.Errorf("internal error")
+	}
+	if err == session.ErrNoSession || err == session.ErrNotDestroyed {
+		cs.logger.Warnf("Session was not destroyed")
+		return session.ErrNotDestroyed
 	}
 
+	return nil
+}
+
+func (cs *CongratulationsService) GetSubscriptionsByUser(ctx context.Context) ([]*user.User, error) {
 	sess, err := session.SessionFromContext(ctx)
 	if err != nil {
 		cs.logger.Errorf("Error getting session from context: %v", err)
 		return nil, session.ErrNoSession
+	}
+
+	users, err := cs.usersRepo.GetAll(ctx)
+	if err != nil {
+		cs.logger.Errorf("Error while getting all users: %v", err)
+		return nil, fmt.Errorf("internal error")
 	}
 
 	subscriptions, err := cs.subscriptionsRepo.GetSubscriptionsByUser(ctx, sess.UserID)
@@ -173,39 +192,22 @@ func (cs *CongratulationsService) GetSubscriptions(ctx context.Context) ([]*user
 	return users, nil
 }
 
-func (cs *CongratulationsService) Logout(ctx context.Context) error {
-	err := cs.sm.Destroy(ctx)
-	if err != nil && err != session.ErrNotDestroyed && err != session.ErrNoSession {
-		cs.logger.Errorf("Error while destroying session")
-		return fmt.Errorf("internal error")
-	}
-	if err == session.ErrNoSession || err == session.ErrNotDestroyed {
-		cs.logger.Warnf("Session was not destroyed")
-		return session.ErrNotDestroyed
-	}
-
-	return nil
-}
-
-func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, wg *sync.WaitGroup) {
+func (cs *CongratulationsService) StartAlert(ctx context.Context, timeStart time.Time, period time.Duration, wg *sync.WaitGroup) {
 	if timeStart.After(time.Now()) {
 		cs.logger.Infof("Alert service will start at %v", timeStart)
 		time.Sleep(time.Until(timeStart))
 	}
 
 	cs.logger.Infof("Starting alert service")
-	go cs.alert(ctx, wg)
+	go cs.alert(ctx, period, wg)
 }
 
-func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup) {
+func (cs *CongratulationsService) alert(ctx context.Context, period time.Duration, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	cs.logger.Infof("Alert service started")
 
-	wg1 := &sync.WaitGroup{}
-	defer wg1.Wait()
-
-	ticker := time.NewTicker(time.Hour * 24)
+	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 
 	// первый раз делаем отправку сразу, затем по тикеру
@@ -218,8 +220,7 @@ func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup)
 	cs.logger.Infof("Sending %d different messages today", len(messages))
 
 	for i := range messages {
-		wg1.Add(1)
-		go cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i], wg1)
+		cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i])
 	}
 
 	for {
@@ -237,8 +238,7 @@ func (cs *CongratulationsService) alert(ctx context.Context, wg *sync.WaitGroup)
 			cs.logger.Infof("Sending %d different messages today", len(messages))
 
 			for i := range messages {
-				wg1.Add(1)
-				go cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i], wg1)
+				cs.alerts.Send(recipients[i], "Напоминание о дне рождения!", messages[i])
 			}
 		}
 	}
@@ -255,7 +255,7 @@ func (cs *CongratulationsService) makeMessages(ctx context.Context) ([]string, [
 		return nil, nil, nil
 	}
 
-	slices.SortFunc(subscriptions, func(a, b *subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
+	slices.SortStableFunc(subscriptions, func(a, b *subscription.Subscription) int { return int(a.Subscription) - int(b.Subscription) })
 
 	messages := make([]string, 0)
 	recipients := make([][]string, 0)

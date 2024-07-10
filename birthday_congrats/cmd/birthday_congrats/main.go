@@ -23,6 +23,7 @@ import (
 const (
 	minutesBeforeStartAlerts = 5
 	logoutTimeoutMinutes     = 60
+	alertPeriodHours         = 24
 )
 
 func main() {
@@ -111,7 +112,7 @@ func main() {
 	}()
 
 	wg.Add(1)
-	go service.StartAlert(ctx, time.Now().Add(time.Minute*minutesBeforeStartAlerts), wg)
+	go service.StartAlert(ctx, time.Now().Add(time.Minute*minutesBeforeStartAlerts), time.Hour*alertPeriodHours, wg)
 
 	// хендлеры
 	serviceHandler := handlers.NewServiceHandler(

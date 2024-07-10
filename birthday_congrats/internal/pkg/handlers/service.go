@@ -114,7 +114,7 @@ func (h *ServiceHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServiceHandler) Users(w http.ResponseWriter, r *http.Request) {
-	users, err := h.service.GetSubscriptions(r.Context())
+	users, err := h.service.GetSubscriptionsByUser(r.Context())
 	if err != nil {
 		h.logger.Errorf("Error getting all users: %v", err)
 	}
