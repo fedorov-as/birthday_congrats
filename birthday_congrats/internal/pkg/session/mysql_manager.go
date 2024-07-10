@@ -107,7 +107,7 @@ func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error {
 	sess, err := SessionFromContext(ctx)
 	if err != nil {
 		sm.logger.Errorf("Error getting session from context: %v", err)
-		return err
+		return ErrNoSession
 	}
 
 	result, err := sm.db.ExecContext(

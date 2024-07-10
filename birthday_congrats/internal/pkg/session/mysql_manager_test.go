@@ -113,6 +113,90 @@ func TestCreate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestDestroy(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %v", err)
+	}
+	defer db.Close()
+
+	testManager := NewMySQLSessionsManager(
+		db,
+		zap.NewNop().Sugar(),
+		int64(0),
+		0,
+	)
+
+	// данные для теста
+	sessExpected := &Session{
+		SessID:  "some_sess_id",
+		UserID:  uint32(42),
+		Expires: 0,
+	}
+
+	// нормальная работа
+	ctx := ContextWithSession(context.Background(), sessExpected)
+
+	mock.
+		ExpectExec("DELETE FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err = testManager.Destroy(ctx)
+
+	assert.NoError(t, err)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
+
+	// в контексте нет сессии
+	ctx = context.Background()
+
+	err = testManager.Destroy(ctx)
+	assert.ErrorIs(t, err, ErrNoSession)
+
+	// ответ с ошибкой
+	ctx = ContextWithSession(context.Background(), sessExpected)
+
+	mock.
+		ExpectExec("DELETE FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnError(fmt.Errorf("db error"))
+
+	err = testManager.Destroy(ctx)
+
+	assert.Error(t, err)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
+
+	// rows affected = 0
+	mock.
+		ExpectExec("DELETE FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err = testManager.Destroy(ctx)
+
+	assert.ErrorIs(t, err, ErrNotDestroyed)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
+
+	// ошибка rowsAffected()
+	mock.
+		ExpectExec("DELETE FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnResult(&customErrorResult{errAffected: fmt.Errorf("affected error")})
+
+	err = testManager.Destroy(ctx)
+
+	assert.Error(t, err)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
+}
+
 func TestCheck(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -141,7 +225,7 @@ func TestCheck(t *testing.T) {
 	}
 
 	// нормальная работа
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(cookie)
 
 	rows := sqlmock.NewRows([]string{"user_id", "expires"})
@@ -161,14 +245,14 @@ func TestCheck(t *testing.T) {
 	assert.NoError(t, err)
 
 	// нет куки
-	req = httptest.NewRequest("GET", "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 
 	_, err = testManager.Check(req)
 
 	assert.ErrorIs(t, err, ErrNoSession)
 
 	// ответ с ошибкой
-	req = httptest.NewRequest("GET", "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(cookie)
 
 	mock.
@@ -184,7 +268,7 @@ func TestCheck(t *testing.T) {
 	assert.NoError(t, err)
 
 	// ошибка scan
-	req = httptest.NewRequest("GET", "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(cookie)
 
 	rows = sqlmock.NewRows([]string{""})
@@ -203,7 +287,7 @@ func TestCheck(t *testing.T) {
 	assert.NoError(t, err)
 
 	// сессия не найдена
-	req = httptest.NewRequest("GET", "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(cookie)
 
 	rows = sqlmock.NewRows([]string{"user_id", "expires"})
@@ -221,5 +305,54 @@ func TestCheck(t *testing.T) {
 	assert.NoError(t, err)
 
 	// сессия истекла
+	sessExpected.Expires = 0
+	cookie.Expires = time.Unix(0, 0)
 
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(cookie)
+
+	ctx := ContextWithSession(req.Context(), sessExpected)
+	req = req.WithContext(ctx)
+
+	rows = sqlmock.NewRows([]string{"user_id", "expires"})
+	rows = rows.AddRow(sessExpected.UserID, sessExpected.Expires)
+
+	mock.
+		ExpectQuery("SELECT user_id, expires FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnRows(rows)
+
+	mock.
+		ExpectExec("DELETE FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	_, err = testManager.Check(req)
+
+	assert.ErrorIs(t, err, ErrSessionExpired)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
+
+	// сессия истекла + ошибка
+	sessExpected.Expires = 0
+	cookie.Expires = time.Unix(0, 0)
+
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(cookie)
+
+	rows = sqlmock.NewRows([]string{"user_id", "expires"})
+	rows = rows.AddRow(sessExpected.UserID, sessExpected.Expires)
+
+	mock.
+		ExpectQuery("SELECT user_id, expires FROM sessions WHERE").
+		WithArgs(sessExpected.SessID).
+		WillReturnRows(rows)
+
+	_, err = testManager.Check(req)
+
+	assert.Error(t, err)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
 }

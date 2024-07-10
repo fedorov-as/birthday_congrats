@@ -67,9 +67,9 @@
 				
 				<option value="file5">birthday_congrats/internal/pkg/middlware/panic.go (0.0%)</option>
 				
-				<option value="file6">birthday_congrats/internal/pkg/session/mysql_manager.go (46.0%)</option>
+				<option value="file6">birthday_congrats/internal/pkg/session/mysql_manager.go (100.0%)</option>
 				
-				<option value="file7">birthday_congrats/internal/pkg/session/session.go (50.0%)</option>
+				<option value="file7">birthday_congrats/internal/pkg/session/session.go (100.0%)</option>
 				
 				<option value="file8">birthday_congrats/internal/pkg/subscription/mysql_repo.go (100.0%)</option>
 				
@@ -635,7 +635,7 @@ func (sm *MySQLSessionsManager) Create(ctx context.Context, userID uint32) (*Ses
 
 func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span class="cov8" title="1">{
         cookie, err := r.Cookie("session_id")
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 sm.logger.Warnf("No session cookie found")
                 return nil, ErrNoSession
         }</span>
@@ -654,58 +654,58 @@ func (sm *MySQLSessionsManager) Check(r *http.Request) (*Session, error) <span c
                 &amp;sess.UserID,
                 &amp;sess.Expires,
         )
-        if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov0" title="0">{
+        if err != nil &amp;&amp; err != sql.ErrNoRows </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Error while SELECT from db: %v", err)
                 return nil, fmt.Errorf("db error: %v", err)
         }</span>
-        <span class="cov8" title="1">if err == sql.ErrNoRows </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err == sql.ErrNoRows </span><span class="cov8" title="1">{
                 sm.logger.Warnf("No session found in db")
                 return nil, ErrNoSession
         }</span>
 
         // проверка, что сессия не истекла
-        <span class="cov8" title="1">if sess.Expires &lt; time.Now().Unix() </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if sess.Expires &lt; time.Now().Unix() </span><span class="cov8" title="1">{
                 err := sm.Destroy(r.Context())
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         sm.logger.Errorf("Error while destroying session: %v", err)
                         return nil, fmt.Errorf("destroy session error: %v", err)
                 }</span>
 
-                <span class="cov0" title="0">return nil, ErrSessionExpired</span>
+                <span class="cov8" title="1">return nil, ErrSessionExpired</span>
         }
 
         <span class="cov8" title="1">return sess, nil</span>
 }
 
-func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error <span class="cov0" title="0">{
+func (sm *MySQLSessionsManager) Destroy(ctx context.Context) error <span class="cov8" title="1">{
         sess, err := SessionFromContext(ctx)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Error getting session from context: %v", err)
-                return err
+                return ErrNoSession
         }</span>
 
-        <span class="cov0" title="0">result, err := sm.db.ExecContext(
+        <span class="cov8" title="1">result, err := sm.db.ExecContext(
                 ctx,
                 "DELETE FROM sessions WHERE sess_id = ?",
                 sess.SessID,
         )
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Error while DELETE from db: %v", err)
                 return fmt.Errorf("db error: %v", err)
         }</span>
 
         // проверка, что запись удалена
-        <span class="cov0" title="0">affected, err := result.RowsAffected()
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">affected, err := result.RowsAffected()
+        if err != nil </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Error in RowsAffected(): %v", err)
                 return fmt.Errorf("db error: %v", err)
         }</span>
-        <span class="cov0" title="0">if affected == 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if affected == 0 </span><span class="cov8" title="1">{
                 sm.logger.Errorf("Subscription was not added")
                 return ErrNotDestroyed
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 </pre>
 		
@@ -762,17 +762,17 @@ type sessKey string
 
 const sessionKey sessKey = "sessionKey"
 
-func ContextWithSession(ctx context.Context, sess *Session) context.Context <span class="cov0" title="0">{
+func ContextWithSession(ctx context.Context, sess *Session) context.Context <span class="cov8" title="1">{
         return context.WithValue(ctx, sessionKey, sess)
 }</span>
 
-func SessionFromContext(ctx context.Context) (*Session, error) <span class="cov0" title="0">{
+func SessionFromContext(ctx context.Context) (*Session, error) <span class="cov8" title="1">{
         sess, ok := ctx.Value(sessionKey).(*Session)
-        if !ok || sess == nil </span><span class="cov0" title="0">{
+        if !ok || sess == nil </span><span class="cov8" title="1">{
                 return nil, ErrNoSession
         }</span>
 
-        <span class="cov0" title="0">return sess, nil</span>
+        <span class="cov8" title="1">return sess, nil</span>
 }
 </pre>
 		
