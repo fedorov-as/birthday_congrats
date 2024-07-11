@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	port                     = ":8080" //порт
+	port                     = ":8080" // порт
 	minutesBeforeStartAlerts = 5       // время до запуска сервиса оповещений с момента старта программы в минутах
 	logoutTimeoutMinutes     = 60      // время жизни сессии в минутах
 	alertPeriodHours         = 24      // период отправки почтовых сообщений в часах
@@ -35,12 +35,6 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error while creating zap logger: %v", err)
 	}
-	defer func() {
-		err = zapLogger.Sync()
-		if err != nil {
-			fmt.Printf("Error while zapLogger.Symc(): %v", err)
-		}
-	}()
 	logger := zapLogger.Sugar()
 
 	// база данных
@@ -107,10 +101,10 @@ func main() {
 	// запускаем сервис оповещений
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := &sync.WaitGroup{}
-	defer func() {
+	defer func(wg *sync.WaitGroup) {
 		cancel()
 		wg.Wait()
-	}()
+	}(wg)
 
 	wg.Add(1)
 	go service.StartAlert(ctx, time.Now().Add(time.Minute*minutesBeforeStartAlerts), time.Hour*alertPeriodHours, wg)
@@ -144,11 +138,51 @@ func main() {
 	mux := middlware.Logger(logger, router)
 	mux = middlware.Panic(logger, mux)
 
+	// сервер
+	server := &http.Server{
+		Addr:    port,
+		Handler: mux,
+	}
+
+	ctx, stopServer := context.WithCancel(context.Background())
+	wg = &sync.WaitGroup{}
+	defer func(wg *sync.WaitGroup) {
+		stopServer()
+		wg.Wait()
+	}(wg)
+
+	wg.Add(1)
+	go startServer(ctx, server, logger, wg)
+
+	fmt.Scanln()
+	stopServer()
+}
+
+func startServer(ctx context.Context, server *http.Server, logger *zap.SugaredLogger, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	// горутина, которая остановит сервер
+	go func() {
+		<-ctx.Done()
+		err := server.Shutdown(ctx)
+		if err != nil {
+			logger.Errorw("Error while shutting down server",
+				"type", "ERROR",
+				"addr", port)
+		}
+	}()
+
 	// запуск сервера
 	logger.Infow("Starting server",
 		"type", "START",
 		"addr", port)
-	err = http.ListenAndServe(port, mux)
+	err := server.ListenAndServe()
+	if err == http.ErrServerClosed {
+		logger.Infow("Shutting down server",
+			"type", "STOP",
+			"addr", port)
+		return
+	}
 	if err != nil {
 		logger.Errorw("Error while starting server",
 			"type", "ERROR",

@@ -196,8 +196,18 @@ func (cs *CongratulationsServiceImpl) GetSubscriptionsByUser(ctx context.Context
 
 func (cs *CongratulationsServiceImpl) StartAlert(ctx context.Context, timeStart time.Time, period time.Duration, wg *sync.WaitGroup) {
 	if timeStart.After(time.Now()) {
+		ticker := time.NewTicker(time.Until(timeStart))
+		defer ticker.Stop()
+
 		cs.logger.Infof("Alert service will start at %v", timeStart)
-		time.Sleep(time.Until(timeStart))
+
+		select {
+		case <-ctx.Done():
+			wg.Done()
+			return
+		case <-ticker.C:
+			break
+		}
 	}
 
 	cs.logger.Infof("Starting alert service")
