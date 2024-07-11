@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	minutesBeforeStartAlerts = 5
-	logoutTimeoutMinutes     = 60
-	alertPeriodHours         = 24
+	port                     = ":8080" //порт
+	minutesBeforeStartAlerts = 5       // время до запуска сервиса оповещений с момента старта программы в минутах
+	logoutTimeoutMinutes     = 60      // время жизни сессии в минутах
+	alertPeriodHours         = 24      // период отправки почтовых сообщений в часах
 )
 
 func main() {
@@ -144,7 +145,6 @@ func main() {
 	mux = middlware.Panic(logger, mux)
 
 	// запуск сервера
-	port := ":8080"
 	logger.Infow("Starting server",
 		"type", "START",
 		"addr", port)
