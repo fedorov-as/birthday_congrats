@@ -1,8 +1,2 @@
-cd birthday_congrats/databases
-docker-compose up -d
-
-cd ..
+cd birthday_congrats
 go run ./... -mod=vendor
-
-cd databases
-docker-compose stop
