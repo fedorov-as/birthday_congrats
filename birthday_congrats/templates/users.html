@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Сервис поздравлений с днём рождения</title>
+</head>
+
+<body>
+    <h1>Сотрудники</h1>
+
+    <table>
+        <tr>
+            <td>Сотрудник</td>
+            <td>Дата рождения</td>
+            <td></td>
+            <td>За сколько дней оповестить</td>
+        </tr>
+        {{range .Users}}
+        <tr>
+            <td>{{.Username}}</td>
+            <td>{{printf "%02d.%02d.%04d" .Day .Month .Year}}</td>
+
+            <form action="/{{if .Subscription}}unsubscribe{{else}}subscribe{{end}}/{{.ID}}" method="post">
+                <td>
+                    <input type="submit" value="{{if .Subscription}}Отписаться{{else}}Подписаться{{end}}">
+                </td>
+                <td>
+                    {{if not .Subscription}}
+                    <input type="number" min="1" max="365" step="1" name="days_alert" required>
+                    {{else}}
+                    {{.DaysAlert}}
+                    {{end}}
+                </td>
+            </form>
+
+        </tr>
+        {{end}}
+    </table>
+    <br>
+    <form action="/logout" method="get">
+        <input type="submit" value="Выйти">
+    </form>
+</body>
+
+</html>
