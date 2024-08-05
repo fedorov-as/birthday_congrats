@@ -3,7 +3,7 @@ version: '3'
 services:
   mysql:
     image: mysql:8
-    command: --default-authentication-plugin=caching_sha2_password
+    command: --mysql-native-password=ON
     environment:
       MYSQL_ROOT_PASSWORD: "root"
       MYSQL_DATABASE: golang
