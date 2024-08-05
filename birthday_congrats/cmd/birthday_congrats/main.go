@@ -162,8 +162,14 @@ func main() {
 	wg.Add(1)
 	go startServer(ctx, server, logger, wg)
 
-	fmt.Scanln()
-	stopServer()
+	for {
+		var q string
+		fmt.Scanln(&q)
+
+		if q == "q" {
+			break
+		}
+	}
 }
 
 func startServer(ctx context.Context, server *http.Server, logger *zap.SugaredLogger, wg *sync.WaitGroup) {
