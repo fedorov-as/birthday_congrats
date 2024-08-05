@@ -10,9 +10,11 @@ import (
 	service "birthday_congrats/internal/services/congrats_service"
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,13 +23,19 @@ import (
 )
 
 const (
-	port                     = ":8080" // порт
-	minutesBeforeStartAlerts = 5       // время до запуска сервиса оповещений с момента старта программы в минутах
-	logoutTimeoutMinutes     = 60      // время жизни сессии в минутах
-	alertPeriodHours         = 24      // период отправки почтовых сообщений в часах
+	// port                     = ":8080" // порт
+	minutesBeforeStartAlerts = 5  // время до запуска сервиса оповещений с момента старта программы в минутах
+	logoutTimeoutMinutes     = 60 // время жизни сессии в минутах
+	alertPeriodHours         = 24 // период отправки почтовых сообщений в часах
+)
+
+var (
+	port = flag.Int("port", 8000, "port to listen and serve")
 )
 
 func main() {
+	flag.Parse()
+
 	templates := template.Must(template.ParseGlob("./templates/*"))
 
 	// логгер
@@ -140,7 +148,7 @@ func main() {
 
 	// сервер
 	server := &http.Server{
-		Addr:    port,
+		Addr:    ":" + strconv.Itoa(*port),
 		Handler: mux,
 	}
 
