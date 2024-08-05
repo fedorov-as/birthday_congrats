@@ -1,2 +1,2 @@
 cd birthday_congrats/databases
-docker-compose up
+docker compose up
